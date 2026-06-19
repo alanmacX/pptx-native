@@ -591,6 +591,34 @@ function extractSlide(opts) {
     }
     return sequences;
   };
+  // Collect [data-ppt-motif] containers. A motif names an information structure
+  // (timeline, layers, comparison, ...); the node side maps it to a choreography
+  // built from existing primitives. We only gather the children + their settled
+  // centers here so the mapping can order them along an axis without DOM access.
+  const motifsFor = (root) => {
+    const motifs = [];
+    for (const el of root.querySelectorAll("[data-ppt-motif]")) {
+      const raw = el.getAttribute("data-ppt-motif") || "";
+      const name = (raw.split(";")[0] || "").trim().toLowerCase();
+      if (!name) continue;
+      const params = parseSeqDecl(raw);
+      let spine = null;
+      const items = [];
+      for (const c of el.querySelectorAll(COMPONENT_SEL)) {
+        if (!c.matches(COMPONENT_SEL)) continue;
+        const key = animationTargetKeyFor(c);
+        if (!key) continue;
+        const role = (c.getAttribute("data-ppt-role") || "").trim().toLowerCase();
+        const b = toStageRect(c.getBoundingClientRect());
+        const isLine = c.classList.contains("ppt-line") || c.tagName.toLowerCase() === "svg";
+        const rec = { key, role, cx: b.x + b.w / 2, cy: b.y + b.h / 2, w: b.w, h: b.h };
+        if (!spine && (role === "spine" || isLine)) spine = rec;
+        else items.push(rec);
+      }
+      motifs.push({ name, raw, params, spine, items });
+    }
+    return motifs;
+  };
   // How many visual lines does this element's text occupy in the settled render?
   // Used to decide wrapping: a box the author sized for ONE line must not be left
   // on wrap="square", because PowerPoint's wider CJK metrics reflow it to two.
@@ -827,6 +855,7 @@ function extractSlide(opts) {
     background: cssBackground(stageStyle),
     pptTransitionRaw: active.getAttribute("data-ppt-transition") || null,
     sequences: sequencesFor(active),
+    motifs: motifsFor(active),
     elements,
     svgElements,
     images,
@@ -1200,7 +1229,71 @@ function slideAnimationsFor(slide, elements) {
   return dedupeAnimations([
     ...declaredPptAnimations(slide, elements),
     ...declaredPptSequences(slide, elements),
+    ...declaredPptMotifs(slide, elements),
   ]);
+}
+
+// ---- Motif choreography -----------------------------------------------------
+// A motif maps an information structure to animation rows built from existing
+// primitives. Each function is pure: (motifRecord, elements) -> rows[], using
+// the same row shape as declaredPptSequences. No new OOXML writers.
+// See docs/motif-choreography-proposal.md.
+
+// timeline: draw the axis (spine) first, then resolve nodes/cards in reading
+// order along the axis, each drifting the last few px into place and settling.
+function timelineMotif(motif) {
+  const p = motif.params || {};
+  const axis = String(p.axis || "x").toLowerCase() === "y" ? "y" : "x";
+  const from = String(p.from || (axis === "x" ? "left" : "top")).toLowerCase();
+  const dur = numberOr(p.dur, 520);
+  const gap = numberOr(firstDefined(p.gap, p.stagger), 140);
+  const overlap = numberOr(p.overlap, 120);
+  const baseDelay = numberOr(p.delay, 0);
+  const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
+  const rows = [];
+  let first = true;
+  const push = (target, intent, delayMs) => {
+    if (!intent) return;
+    rows.push({ ...intent, target, trigger: first ? firstTrigger : "withPrevious", delayMs });
+    first = false;
+  };
+
+  const spineDur = Math.max(dur, 640);
+  if (motif.spine) {
+    push(motif.spine.key, pptAnimToIntent({ entrance: "wipe", dur: spineDur }), baseDelay);
+  }
+  const spineLead = motif.spine ? spineDur - overlap : 0;
+
+  const ordered = [...(motif.items || [])].sort((a, b) => (axis === "x" ? a.cx - b.cx : a.cy - b.cy));
+  if (from === "right" || from === "bottom") ordered.reverse();
+  const drift = from === "right" || from === "bottom" ? 24 : -24;
+  ordered.forEach((it, i) => {
+    const intent = pptAnimToIntent({
+      compose: true,
+      opacity: "in",
+      x: axis === "x" ? drift : 0,
+      y: axis === "x" ? 18 : drift,
+      scaleFrom: 0.96,
+      scaleTo: 1,
+      dur,
+    });
+    push(it.key, intent, baseDelay + spineLead + i * gap);
+  });
+  return rows;
+}
+
+const MOTIF_REGISTRY = {
+  timeline: timelineMotif,
+};
+
+function declaredPptMotifs(slide, elements) {
+  const rows = [];
+  for (const motif of slide.motifs || []) {
+    const fn = MOTIF_REGISTRY[motif && motif.name];
+    if (!fn) continue;
+    rows.push(...fn(motif, elements));
+  }
+  return rows.filter((row) => row.target && animationTargetExists(elements, row.target));
 }
 
 // Parse a "k:v; k:v" declarative string into a plain object.

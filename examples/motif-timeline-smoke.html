@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;}
+  .slide{position:relative;width:1280px;height:720px;background:#FFFFFF;overflow:hidden;}
+  .ppt-textbox{position:absolute;color:#0F1B2D;line-height:1.45;}
+  .ppt-shape{position:absolute;}
+</style>
+</head>
+<body>
+<section class="slide" data-slide="1" data-ppt-transition="type:fade">
+  <div class="ppt-textbox" style="left:80px;top:64px;width:900px;font-size:30px;font-weight:800;">motif: timeline（语义编排样例）</div>
+  <div class="ppt-textbox" style="left:80px;top:108px;width:900px;font-size:14px;color:#5B6B7F;">轴线先 wipe，节点与卡片再沿轴顺序入场、轻微漂移到位——无需逐元素手写动画。</div>
+
+  <!-- one declaration choreographs the whole group -->
+  <div data-ppt-motif="timeline; axis:x; from:left; dur:520; gap:150; overlap:140">
+    <div class="ppt-shape" data-ppt-role="spine" data-shape="rect" style="left:150px;top:360px;width:980px;height:3px;background:linear-gradient(90deg,#0E9F8E,#2D6BE4);"></div>
+
+    <div class="ppt-shape" data-ppt-role="node" data-shape="ellipse" style="left:230px;top:344px;width:34px;height:34px;background:#0E9F8E;border:5px solid #FFFFFF;border-radius:50%;"></div>
+    <div class="ppt-shape" data-ppt-role="card" data-shape="roundRect" style="left:96px;top:196px;width:300px;height:130px;background:#F5F7FA;border:1px solid #E2E8F0;border-radius:14px;"></div>
+
+    <div class="ppt-shape" data-ppt-role="node" data-shape="ellipse" style="left:610px;top:344px;width:34px;height:34px;background:#2D6BE4;border:5px solid #FFFFFF;border-radius:50%;"></div>
+    <div class="ppt-shape" data-ppt-role="card" data-shape="roundRect" style="left:476px;top:398px;width:300px;height:130px;background:#F5F7FA;border:1px solid #E2E8F0;border-radius:14px;"></div>
+
+    <div class="ppt-shape" data-ppt-role="node" data-shape="ellipse" style="left:990px;top:344px;width:34px;height:34px;background:#C98A2B;border:5px solid #FFFFFF;border-radius:50%;"></div>
+    <div class="ppt-shape" data-ppt-role="card" data-shape="roundRect" style="left:856px;top:196px;width:300px;height:130px;background:#0F1B2D;border-radius:14px;"></div>
+  </div>
+
+  <div class="ppt-textbox" style="left:120px;top:214px;width:260px;font-size:16px;font-weight:700;">起源</div>
+  <div class="ppt-textbox" style="left:120px;top:242px;width:260px;font-size:12.5px;color:#5B6B7F;">早期聚焦高并发在线事务处理。</div>
+  <div class="ppt-textbox" style="left:500px;top:416px;width:260px;font-size:16px;font-weight:700;">行业化</div>
+  <div class="ppt-textbox" style="left:500px;top:444px;width:260px;font-size:12.5px;color:#5B6B7F;">进入金融政企核心系统。</div>
+  <div class="ppt-textbox" style="left:880px;top:214px;width:260px;font-size:16px;font-weight:700;color:#FFFFFF;">云原生 · AI</div>
+  <div class="ppt-textbox" style="left:880px;top:242px;width:260px;font-size:12.5px;color:#C7D3E0;">统一分布式数据底座。</div>
+</section>
+</body>
+</html>
