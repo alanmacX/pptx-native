@@ -49,10 +49,12 @@ you'd design any web page. This file describes only the **mechanics**: how to au
 and what compiles to native PowerPoint. It deliberately holds no opinion about what
 looks good; don't expect (or impose) a house style.
 
-For design-heavy, animation-heavy, or "make it not AI-looking" tasks, read
-`references/design-and-motion.md`. It explains the style-neutral native component
-coverage, motion grammar, sequence choreography, and copy hygiene rules. It is not
-a template or house style.
+For design-heavy, animation-heavy, property-heavy, or "make it not AI-looking"
+tasks, read `references/native-surface-inventory.md` first, then
+`references/design-and-motion.md`. The surface inventory explains which native
+PowerPoint carrier can hold each property/effect/animation; design-and-motion
+explains style-neutral component choice, motion grammar, sequence choreography,
+and copy hygiene. Neither file is a template or house style.
 
 ## The authoring contract — just write normal HTML/CSS
 

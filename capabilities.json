@@ -265,6 +265,12 @@
       "dataImage": true,
       "crop": false,
       "rotation": true,
+      "effects": [
+        "shadow",
+        "glow",
+        "blur",
+        "reflection"
+      ],
       "authorIRShape": {
         "type": "image",
         "src": "data:image/*",
@@ -357,8 +363,395 @@
       "ooxmlTarget": "a:effectLst/a:softEdge"
     },
     "reflection": {
-      "status": "declared-gap",
-      "ooxmlTarget": "a:effectLst/a:reflection"
+      "status": "compiles",
+      "ooxmlTarget": "a:effectLst/a:reflection",
+      "params": [
+        "alpha",
+        "dist",
+        "blur"
+      ]
+    }
+  },
+  "surface": {
+    "purpose": "Carrier matrix for choosing the native PowerPoint object before authoring properties or animation. Query this to avoid putting a property on an object whose writer cannot emit it.",
+    "carriers": {
+      "textbox": {
+        "status": "compiles",
+        "ooxmlTarget": "p:sp / a:txBody",
+        "html": "text node / .ppt-textbox",
+        "sceneType": "text",
+        "properties": [
+          "geometry",
+          "textRuns",
+          "font",
+          "color",
+          "align",
+          "valign",
+          "rotation"
+        ],
+        "effects": [],
+        "timing": [
+          "appear",
+          "entrance",
+          "exit",
+          "emphasis",
+          "motionPath",
+          "compose",
+          "sequenceTarget",
+          "textBuild"
+        ],
+        "gaps": [
+          "shapeFillBehindText",
+          "textShadow",
+          "textGlow",
+          "hyperlink",
+          "fields"
+        ],
+        "note": "For text inside an effect-bearing box, author a shape with text instead of a bare text object."
+      },
+      "shape": {
+        "status": "compiles",
+        "ooxmlTarget": "p:sp / a:prstGeom",
+        "html": ".ppt-shape / painted div",
+        "sceneType": "shape",
+        "properties": [
+          "geometry",
+          "presetGeometry",
+          "solidFill",
+          "linearGradient",
+          "radialGradient",
+          "stroke",
+          "dash",
+          "alpha",
+          "rotation",
+          "flip",
+          "text"
+        ],
+        "effects": [
+          "shadow",
+          "glow",
+          "blur",
+          "reflection"
+        ],
+        "timing": [
+          "appear",
+          "entrance",
+          "exit",
+          "emphasis",
+          "motionPath",
+          "compose",
+          "sequenceTarget"
+        ],
+        "gaps": [
+          "patternFill",
+          "pictureFill",
+          "softEdge",
+          "3d"
+        ]
+      },
+      "freeform": {
+        "status": "compiles",
+        "ooxmlTarget": "p:sp / a:custGeom",
+        "html": "filled SVG path/polygon/polyline",
+        "sceneType": "freeform|polygon|path",
+        "properties": [
+          "points",
+          "closed",
+          "solidFill",
+          "linearGradient",
+          "radialGradient",
+          "stroke"
+        ],
+        "effects": [
+          "shadow",
+          "glow",
+          "blur",
+          "reflection"
+        ],
+        "timing": [
+          "appear",
+          "entrance",
+          "exit",
+          "emphasis",
+          "motionPath",
+          "compose",
+          "sequenceTarget"
+        ],
+        "gaps": [
+          "trueBezierAuthoring",
+          "editPointsUiHints"
+        ]
+      },
+      "connector": {
+        "status": "compiles",
+        "ooxmlTarget": "p:cxnSp / a:ln",
+        "html": ".ppt-line / SVG line/polyline",
+        "sceneType": "line|polyline",
+        "properties": [
+          "x1",
+          "y1",
+          "x2",
+          "y2",
+          "stroke",
+          "dash",
+          "arrowEnd"
+        ],
+        "effects": [],
+        "timing": [
+          "appear",
+          "entrance",
+          "exit",
+          "emphasis",
+          "motionPath",
+          "compose",
+          "sequenceTarget"
+        ],
+        "gaps": [
+          "bentConnector",
+          "curvedConnector",
+          "connectorGlow",
+          "connectorShadow"
+        ]
+      },
+      "picture": {
+        "status": "compiles",
+        "ooxmlTarget": "p:pic / a:blip",
+        "html": "img / .ppt-picture",
+        "sceneType": "image",
+        "properties": [
+          "geometry",
+          "dataImage",
+          "rotation",
+          "flip"
+        ],
+        "effects": [
+          "shadow",
+          "glow",
+          "blur",
+          "reflection"
+        ],
+        "timing": [
+          "appear",
+          "entrance",
+          "exit",
+          "emphasis",
+          "motionPath",
+          "compose",
+          "sequenceTarget"
+        ],
+        "gaps": [
+          "crop",
+          "transparency",
+          "duotone",
+          "artisticEffects",
+          "animatedFilter"
+        ],
+        "note": "Partial/progressive image effects require decomposition into multiple native pictures, as in the blur-scan demo."
+      },
+      "table": {
+        "status": "compiles",
+        "ooxmlTarget": "p:graphicFrame / a:tbl",
+        "html": "native scene JSON only",
+        "sceneType": "table",
+        "properties": [
+          "rows",
+          "columns",
+          "cellText",
+          "cellFill",
+          "cellColor",
+          "borderColor"
+        ],
+        "effects": [],
+        "timing": [
+          "appear",
+          "entrance",
+          "exit",
+          "emphasis",
+          "motionPath",
+          "compose",
+          "sequenceTarget"
+        ],
+        "gaps": [
+          "mergedCells",
+          "tableEffects",
+          "htmlExtraction"
+        ]
+      },
+      "chart": {
+        "status": "compiles",
+        "ooxmlTarget": "p:graphicFrame / c:chart + embedded xlsx",
+        "html": "native scene JSON only",
+        "sceneType": "chart",
+        "properties": [
+          "chartType",
+          "categories",
+          "series",
+          "seriesColor",
+          "title",
+          "legend"
+        ],
+        "effects": [],
+        "timing": [
+          "appear",
+          "entrance",
+          "exit",
+          "emphasis",
+          "motionPath",
+          "compose",
+          "sequenceTarget"
+        ],
+        "gaps": [
+          "comboChart",
+          "scatter",
+          "area",
+          "axisFormatting",
+          "htmlExtraction"
+        ]
+      },
+      "group": {
+        "status": "declared-gap",
+        "ooxmlTarget": "p:grpSp",
+        "html": ".ppt-group is structural only",
+        "sceneType": "group",
+        "properties": [],
+        "effects": [],
+        "timing": [],
+        "gaps": [
+          "groupWriter",
+          "groupLevelEffects",
+          "groupLevelAnimation"
+        ],
+        "note": "Until p:grpSp lands, decompose into sibling native objects and sequence their children."
+      }
+    },
+    "propertyMatrix": {
+      "solidFill": {
+        "compilesOn": [
+          "shape",
+          "freeform",
+          "tableCell"
+        ],
+        "gapsOn": [
+          "picture",
+          "connector",
+          "chart"
+        ]
+      },
+      "gradientFill": {
+        "compilesOn": [
+          "shape",
+          "freeform"
+        ],
+        "gapsOn": [
+          "tableCell",
+          "picture",
+          "connector",
+          "chart"
+        ]
+      },
+      "stroke": {
+        "compilesOn": [
+          "shape",
+          "freeform",
+          "connector"
+        ],
+        "gapsOn": [
+          "picture",
+          "chart"
+        ]
+      },
+      "textRuns": {
+        "compilesOn": [
+          "textbox",
+          "shapeText",
+          "tableCell"
+        ],
+        "gapsOn": [
+          "chartLabels"
+        ]
+      },
+      "shadow": {
+        "compilesOn": [
+          "shape",
+          "freeform",
+          "picture"
+        ],
+        "gapsOn": [
+          "textbox",
+          "connector",
+          "table",
+          "chart"
+        ]
+      },
+      "glow": {
+        "compilesOn": [
+          "shape",
+          "freeform",
+          "picture"
+        ],
+        "gapsOn": [
+          "textbox",
+          "connector",
+          "table",
+          "chart"
+        ]
+      },
+      "blur": {
+        "compilesOn": [
+          "shape",
+          "freeform",
+          "picture"
+        ],
+        "gapsOn": [
+          "textbox",
+          "connector",
+          "table",
+          "chart"
+        ],
+        "notAnimatable": true
+      },
+      "reflection": {
+        "compilesOn": [
+          "shape",
+          "freeform",
+          "picture"
+        ],
+        "gapsOn": [
+          "textbox",
+          "connector",
+          "table",
+          "chart"
+        ]
+      },
+      "crop": {
+        "compilesOn": [],
+        "gapsOn": [
+          "picture"
+        ]
+      },
+      "animation": {
+        "compilesOn": [
+          "textbox",
+          "shape",
+          "freeform",
+          "connector",
+          "picture",
+          "table",
+          "chart"
+        ],
+        "gapsOn": [
+          "group"
+        ]
+      },
+      "textBuild": {
+        "compilesOn": [
+          "textbox"
+        ],
+        "gapsOn": [
+          "shapeText",
+          "tableCell"
+        ]
+      }
     }
   },
   "animation": {

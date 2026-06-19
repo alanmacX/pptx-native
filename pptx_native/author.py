@@ -820,6 +820,8 @@ def _element_xml(shape_id: int, element: dict[str, Any], sx: float, sy: float) -
             line=element.get("line", {"fill": None, "width": 0}),
             shadow=_scene_shadow(element.get("shadow"), sx),
             glow=_scene_glow(element.get("glow"), sx),
+            blur=_scene_blur(element.get("blur"), sx),
+            reflection=_scene_reflection(element.get("reflection"), sx),
         )
         return xml, shape_id + 1
     preset = str(element.get("shape", "rect"))
@@ -906,6 +908,8 @@ def _freeform_xml(
     line: dict[str, Any] | None = None,
     shadow: dict[str, Any] | None = None,
     glow: dict[str, Any] | None = None,
+    blur: dict[str, Any] | None = None,
+    reflection: dict[str, Any] | None = None,
 ) -> str:
     """Emit a native custom-geometry (custGeom) freeform from sampled points.
 
@@ -937,7 +941,7 @@ def _freeform_xml(
         f"{geom}"
         f"{_fill_xml(fill, 10, alpha=fill_alpha, gradient=fill_gradient)}"
         f"{_line_xml_inner(line, 10)}"
-        f"{_effects_xml(shadow, glow, 10)}"
+        f"{_effects_xml(shadow, glow, 10, blur=blur, reflection=reflection)}"
         "        </p:spPr>\n"
     )
     return (

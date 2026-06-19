@@ -10,6 +10,8 @@ silently faked.
 
 Authoritative companions:
 - `capabilities.json` — machine-readable list of what compiles (query it first).
+- `references/native-surface-inventory.md` — carrier/property matrix; check it
+  before putting an effect or animation on an object type.
 - `docs/ppt-native-catalog.md` — the full OOXML ground truth.
 - `docs/animation.md` — animation writer details.
 
