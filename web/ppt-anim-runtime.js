@@ -60,7 +60,7 @@
       d.emphasis || (d.motion || d.path ? "motionPath" : null) || "fade";
     const entrance = (isCompose && opacity === "in") || (!!(d.entrance || d.appear !== undefined) && !exit);
     return { el, effect, exit, entrance, opacity,
-      trigger: normTrigger(d.trigger), dur: num(d.dur, 450), delay: num(d.delay, 0),
+      trigger: normTrigger(d.trigger), dur: num(d.dur, 450), delay: num(d.delay, 0), ease: d.ease || "",
       spins: num(d.spins, 1), scale: num(d.scale, null), path: d.path || d.motion || "",
       x: num(d.x ?? d.dx, 0), y: num(d.y ?? d.dy, 0),
       scaleFrom: num(d.scaleFrom, null), scaleTo: num(d.scaleTo, null),
@@ -228,7 +228,8 @@
         kf = { transform: ["scale(1)", `scale(${it.scale / 100})`] };
     }
     if (!kf) { return; }
-    const opts = { duration: Math.max(1, it.dur), delay: it.delay || 0, fill: "forwards", easing: "ease" };
+    const fill = it.entrance || it.opacity === "in" ? "both" : "forwards";
+    const opts = { duration: Math.max(1, it.dur), delay: it.delay || 0, fill, easing: easing(it.ease) };
     if (it.effect === "pulse") opts.fill = "none";
     let animation = null;
     try { animation = it.el.animate(kf, opts); }
@@ -238,6 +239,16 @@
 
   function playGroup(g) {
     for (const it of g.items) playItem(it);
+  }
+
+  function easing(value) {
+    const e = String(value || "").trim().toLowerCase();
+    if (e === "linear" || e === "none") return "linear";
+    if (e === "out" || e === "ease-out" || e === "easeout") return "cubic-bezier(.22,1,.36,1)";
+    if (e === "in" || e === "ease-in" || e === "easein") return "cubic-bezier(.32,0,.67,0)";
+    if (e === "inout" || e === "ease-in-out" || e === "easeinout" || e === "smooth") return "cubic-bezier(.65,0,.35,1)";
+    if (/^cubic-bezier\([^)]+\)$/.test(e)) return e;
+    return "ease";
   }
 
   function autoLead(state) {

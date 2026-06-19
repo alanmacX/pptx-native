@@ -517,6 +517,10 @@ def _image_element_xml(
     cy = _emu(element.get("h", element.get("cy", 100)), sy)
     rot = _rotation_attr(element.get("rotation")) + _flip_attr(
         bool(element.get("flipH")), bool(element.get("flipV")))
+    shadow = _scene_shadow(element.get("shadow"), sx)
+    glow = _scene_glow(element.get("glow"), sx)
+    blur = _scene_blur(element.get("blur"), sx)
+    reflection = _scene_reflection(element.get("reflection"), sx)
     xml = (
         "      <p:pic>\n"
         f'        <p:nvPicPr><p:cNvPr id="{shape_id}" name="{_e(name)}"/><p:cNvPicPr><a:picLocks noChangeAspect="0"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>\n'
@@ -524,7 +528,7 @@ def _image_element_xml(
         "        <p:spPr>\n"
         f'          <a:xfrm{rot}><a:off x="{x}" y="{y}"/><a:ext cx="{max(cx, 1)}" cy="{max(cy, 1)}"/></a:xfrm>\n'
         '          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>\n'
-        f"{_shadow_xml(_scene_shadow(element.get('shadow'), sx), 10)}"
+        f"{_effects_xml(shadow, glow, 10, blur=blur, reflection=reflection)}"
         "        </p:spPr>\n"
         "      </p:pic>"
     )

@@ -1213,7 +1213,7 @@ function pptAnimToIntent(d) {
 
 function declaredPptAnimations(slide, elements) {
   const rows = [];
-  for (const el of slide.elements || []) {
+  for (const el of authoredNativeSources(slide)) {
     const source = sourceRef(el);
     // GUARD: data-ppt-anim and data-ppt-build must NOT coexist on the same element.
     // Combining them generates conflicting shape-level + paragraph-level animation OOXML
@@ -1243,6 +1243,14 @@ function declaredPptAnimations(slide, elements) {
     }
   }
   return rows.filter((row) => row.target && animationTargetExists(elements, row.target));
+}
+
+function authoredNativeSources(slide) {
+  return [
+    ...(slide.elements || []),
+    ...(slide.images || []),
+    ...(slide.svgElements || []),
+  ];
 }
 
 function firstDefined(...values) {
@@ -1304,7 +1312,7 @@ function declaredPptSequences(slide, elements) {
 // Apply data-ppt-glow onto authored scene elements by source key.
 function applyPptGlow(slide, elements) {
   const glowByKey = new Map();
-  for (const el of slide.elements || []) {
+  for (const el of authoredNativeSources(slide)) {
     if (!el.pptGlowRaw) continue;
     const d = parsePptDecl(el.pptGlowRaw);
     glowByKey.set(sourceRef(el).key, {
@@ -1325,7 +1333,7 @@ function applyPptGlow(slide, elements) {
 function applyPptEffects(slide, elements) {
   const blurByKey = new Map();
   const reflByKey = new Map();
-  for (const el of slide.elements || []) {
+  for (const el of authoredNativeSources(slide)) {
     const key = sourceRef(el).key;
     let blurPx = el.pptBlurRaw != null ? Number(el.pptBlurRaw) : null;
     if (!Number.isFinite(blurPx) || blurPx <= 0) {
