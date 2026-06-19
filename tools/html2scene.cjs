@@ -591,6 +591,22 @@ function extractSlide(opts) {
     }
     return sequences;
   };
+  // How many visual lines does this element's text occupy in the settled render?
+  // Used to decide wrapping: a box the author sized for ONE line must not be left
+  // on wrap="square", because PowerPoint's wider CJK metrics reflow it to two.
+  const textLineCount = (node) => {
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const rects = [...range.getClientRects()].filter((r) => r.width > 0.5 && r.height > 0.5);
+      if (!rects.length) return 1;
+      const tops = [];
+      for (const r of rects) {
+        if (!tops.some((t) => Math.abs(t - r.top) <= 2)) tops.push(r.top);
+      }
+      return Math.max(1, tops.length);
+    } catch { return 1; }
+  };
   const textRecord = (el, style, common, bg, border, hasShadow) => {
     const runs = blockTextRunsFor(el);
     if (!runs.length) return null;
@@ -600,6 +616,7 @@ function extractSlide(opts) {
       text: runs.map((run) => run.text).join(""),
       textRuns: runs,
       isTextBlock: true,
+      singleLine: textLineCount(el) === 1,
       fontFamily: style.fontFamily,
       fontSize: px(style.fontSize),
       fontWeight: style.fontWeight,
@@ -1682,7 +1699,10 @@ function authorTextBlockElement(el) {
     italic: fallbackRun.italic,
     align: normalizeAlign(el.textAlign),
     valign: el.valign || "top",
-    wrap: "square",
+    // A box the author sized for a single line stays single: wrap="none" lets the
+    // text extend instead of reflowing under PowerPoint's wider CJK metrics. Real
+    // multi-line blocks (incl. authored <br>) keep wrap="square".
+    wrap: el.singleLine ? "none" : "square",
     autofit: "none",
     _zIndex: el.zIndex || 0,
     _stackPath: el.stackPath || [el.zIndex || 0],
