@@ -1,8 +1,16 @@
-# Proposal: Motif Choreography (`data-ppt-motif`)
+# Motif Choreography (`data-ppt-motif`)
 
-Status: **draft for review.** `timeline` is implemented as a working proof on
-branch `feat/motif-choreography`; the other motifs are specified only. Decide
-which motifs to roll out after reviewing the timeline slice.
+Status: **landed.** `timeline`, `layers`, `comparison`, and `metricCluster` are
+implemented. `hubSpoke` remains spec-only (needs connector-draw semantics).
+
+Decisions taken (were the open questions):
+1. **Roles** — support both explicit `data-ppt-role` and inference.
+2. **timeline pairing** — order strictly by axis center; a card sits just left
+   of its node so the pair reads as arriving together. No special pairing pass.
+3. **Unknown motif** — reported, not silent: `motifsFor` records it in the
+   slide's `unsupported`, and `ppt_html_lint.cjs` emits a `MOTIF_UNKNOWN`
+   warning (visible in the build report).
+4. **Gallery** — `examples/motif-timeline-smoke.html` + `examples/motif-gallery-smoke.html`.
 
 ## Problem
 
@@ -162,13 +170,20 @@ same x into a sub-group is a possible refinement — see open questions.)
 
 ## Motif table (rollout candidates)
 
-| Motif | Structure | Choreography sketch | Status |
+| Motif | Structure | Choreography | Status |
 |---|---|---|---|
 | `timeline` | axis line + nodes + cards | spine wipes, items resolve along axis | **implemented** |
-| `layers` | stacked bands | top→bottom 60ms stagger, slight `y` settle | spec |
-| `comparison` | left vs right columns | symmetric entrance from both edges, center divider last | spec |
+| `layers` | stacked bands | top→bottom tight cascade (70ms), slight `y` settle | **implemented** |
+| `comparison` | left vs right columns | symmetric entrance from both edges, paired by row, center divider last | **implemented** |
+| `metricCluster` | KPI tiles | soft rise (`y:18→0`) in reading order, gentle overlap | **implemented** |
 | `hubSpoke` | center + satellites + connectors | center grows first, spokes draw outward, satellites pop | spec |
-| `metricCluster` | KPI tiles | soft rise (`y:18→0`) + count-in feel, gentle overlap | spec |
+
+## Params per motif
+
+- `timeline`: `axis` (`x`/`y`), `from`, `dur` (520), `gap` (140), `overlap` (120), `delay`, `trigger`.
+- `layers`: `dur` (460), `gap` (70), `delay`, `trigger`.
+- `comparison`: `dur` (520), `gap` (120), `delay`, `trigger`; roles `left`/`right`/`center`.
+- `metricCluster`: `dur` (520), `gap` (90), `delay`, `trigger`.
 
 ## Companion: auto-Morph (separate, smaller follow-up)
 
@@ -177,14 +192,9 @@ on across adjacent slides, matching by `source.key` / identical text, so a
 carried title/card glides instead of re-entering. Independent change; do after
 `timeline` lands.
 
-## Open questions for review
+## Next
 
-1. **Roles**: explicit `data-ppt-role` (recommended) vs pure inference vs both?
-   The proof uses both.
-2. **Node/card pairing** in `timeline`: order strictly by `cx`, or group a node
-   with its nearest card so the pair enters together?
-3. **Unknown motif**: silent skip (current) or emit a structured loss so the
-   author is told `data-ppt-motif="foo"` did nothing?
-4. **Gallery format**: one HTML per motif under `examples/motif-*.html` + a
-   rendered PNG strip, matching the existing smoke examples — OK?
-5. Which motifs from the table do you want next?
+- `hubSpoke`: needs a connector-draw step (spokes as `.ppt-line` wiping outward
+  from the hub) before satellites pop — the only motif requiring per-role
+  effect *types* rather than one shared compose. Add when needed.
+- Auto-Morph follow-up (above) for adjacent-slide gliding.

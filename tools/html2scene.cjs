@@ -595,12 +595,18 @@ function extractSlide(opts) {
   // (timeline, layers, comparison, ...); the node side maps it to a choreography
   // built from existing primitives. We only gather the children + their settled
   // centers here so the mapping can order them along an axis without DOM access.
+  const KNOWN_MOTIFS = new Set(["timeline", "layers", "comparison", "metriccluster"]);
   const motifsFor = (root) => {
     const motifs = [];
     for (const el of root.querySelectorAll("[data-ppt-motif]")) {
       const raw = el.getAttribute("data-ppt-motif") || "";
       const name = (raw.split(";")[0] || "").trim().toLowerCase();
       if (!name) continue;
+      if (!KNOWN_MOTIFS.has(name)) {
+        // Report rather than silently no-op: a typo'd motif should not vanish.
+        unsupported.push({ kind: "motif", name, reason: `unknown data-ppt-motif "${name}"` });
+        continue;
+      }
       const params = parseSeqDecl(raw);
       let spine = null;
       const items = [];
@@ -1282,8 +1288,81 @@ function timelineMotif(motif) {
   return rows;
 }
 
+// layers: a stacked band diagram resolves top -> bottom in a tight cascade,
+// each band settling down a few px. No spine.
+function layersMotif(motif) {
+  const p = motif.params || {};
+  const dur = numberOr(p.dur, 460);
+  const gap = numberOr(firstDefined(p.gap, p.stagger), 70);
+  const baseDelay = numberOr(p.delay, 0);
+  const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
+  const ordered = [...(motif.items || [])].sort((a, b) => a.cy - b.cy);
+  return ordered.map((it, i) => ({
+    ...pptAnimToIntent({ compose: true, opacity: "in", y: -16, scaleFrom: 0.98, scaleTo: 1, dur }),
+    target: it.key,
+    trigger: i === 0 ? firstTrigger : "withPrevious",
+    delayMs: baseDelay + i * gap,
+  }));
+}
+
+// comparison: left and right columns enter symmetrically from their own edge,
+// paired by row so each row's two sides arrive together; an optional center
+// divider (role:center) resolves last.
+function comparisonMotif(motif) {
+  const p = motif.params || {};
+  const dur = numberOr(p.dur, 520);
+  const gap = numberOr(firstDefined(p.gap, p.stagger), 120);
+  const baseDelay = numberOr(p.delay, 0);
+  const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
+  const items = motif.items || [];
+  const xs = items.map((it) => it.cx);
+  const mid = xs.length ? (Math.min(...xs) + Math.max(...xs)) / 2 : 0;
+  const center = items.filter((it) => it.role === "center");
+  const sided = items.filter((it) => it.role !== "center");
+  const left = sided.filter((it) => it.role === "left" || (!it.role && it.cx < mid)).sort((a, b) => a.cy - b.cy);
+  const right = sided.filter((it) => it.role === "right" || (!it.role && it.cx >= mid)).sort((a, b) => a.cy - b.cy);
+  const rows = [];
+  let first = true;
+  const emit = (it, driftX, delayMs) => {
+    rows.push({
+      ...pptAnimToIntent({ compose: true, opacity: "in", x: driftX, scaleFrom: 0.97, scaleTo: 1, dur }),
+      target: it.key,
+      trigger: first ? firstTrigger : "withPrevious",
+      delayMs,
+    });
+    first = false;
+  };
+  const rowCount = Math.max(left.length, right.length);
+  for (let i = 0; i < rowCount; i++) {
+    const delayMs = baseDelay + i * gap;
+    if (left[i]) emit(left[i], -28, delayMs);
+    if (right[i]) emit(right[i], 28, delayMs);
+  }
+  center.forEach((it) => emit(it, 0, baseDelay + rowCount * gap));
+  return rows;
+}
+
+// metricCluster: KPI tiles rise softly in reading order with gentle overlap.
+function metricClusterMotif(motif) {
+  const p = motif.params || {};
+  const dur = numberOr(p.dur, 520);
+  const gap = numberOr(firstDefined(p.gap, p.stagger), 90);
+  const baseDelay = numberOr(p.delay, 0);
+  const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
+  const ordered = [...(motif.items || [])].sort((a, b) => a.cy - b.cy || a.cx - b.cx);
+  return ordered.map((it, i) => ({
+    ...pptAnimToIntent({ compose: true, opacity: "in", y: 18, scaleFrom: 0.96, scaleTo: 1, dur }),
+    target: it.key,
+    trigger: i === 0 ? firstTrigger : "withPrevious",
+    delayMs: baseDelay + i * gap,
+  }));
+}
+
 const MOTIF_REGISTRY = {
   timeline: timelineMotif,
+  layers: layersMotif,
+  comparison: comparisonMotif,
+  metriccluster: metricClusterMotif,
 };
 
 function declaredPptMotifs(slide, elements) {

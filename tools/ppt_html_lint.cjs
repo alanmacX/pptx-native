@@ -325,6 +325,20 @@ async function main() {
           add(el, "error", "SEQUENCE_BAD_TRIGGER", `trigger:${trig} is not a PPT trigger.`,
             "Use onClick / withPrev / afterPrev / auto.");
       }
+      const motifDecl = el.getAttribute("data-ppt-motif");
+      if (motifDecl) {
+        // Keep in sync with MOTIF_REGISTRY in tools/html2scene.cjs.
+        const knownMotifs = ["timeline", "layers", "comparison", "metriccluster"];
+        const name = String(motifDecl.split(";")[0] || "").trim().toLowerCase();
+        const componentSel = ".ppt-textbox,.ppt-shape,.ppt-line,.ppt-picture,.ppt-media";
+        if (!name || !knownMotifs.includes(name))
+          add(el, "warning", "MOTIF_UNKNOWN", `data-ppt-motif "${name}" is not a known motif.`,
+            `Use one of: ${knownMotifs.join(", ")}. See docs/motif-choreography-proposal.md.`);
+        else if (!Array.from(el.querySelectorAll(componentSel)).some((c) => c.matches(componentSel)))
+          add(el, "warning", "MOTIF_NO_TARGETS",
+            "data-ppt-motif has no native child targets to choreograph.",
+            "Put .ppt-shape/.ppt-textbox/.ppt-line elements inside the motif container.");
+      }
     }
 
     const transitionDecl = (slide) => parseDecl(slide.getAttribute("data-ppt-transition") || "");
