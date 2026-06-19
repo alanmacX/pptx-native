@@ -107,6 +107,17 @@ staggered sequence of native timing effects. The sequence does not carry visual
 style; children still get their own CSS tokens. Use it for cascades, handoffs,
 and grouped reveals where timing continuity matters.
 
+> **Coordinate-frame trap.** A positioned container (`.ppt-stagger`/`.ppt-group`
+> at some `left/top`) establishes a local frame: its children's `left/top` are
+> relative to the container. If you then place *overlay* siblings — a number,
+> label, icon, or caption meant to sit on a child card — as direct children of
+> the slide, those use the slide frame, and they will land shifted by the
+> container's offset (e.g. a card grid offset 92px right while its labels start
+> at the slide's left edge → every label pokes out the left of its card). Keep a
+> card and the content that sits on it in the **same** container (so they share
+> one frame), or add the container's `left/top` to each overlay sibling. The
+> linter flags this as `LAYOUT_PANEL_OVERFLOW`.
+
 ### `data-ppt-morph` (slide-to-slide 平滑)
 - Mark the same object on adjacent slides with the same `data-morph` key and the
   compiler can morph it. PowerPoint only compares adjacent slides; a page cannot

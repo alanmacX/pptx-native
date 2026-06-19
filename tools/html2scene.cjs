@@ -361,42 +361,23 @@ function extractSlide(opts) {
     const n = Number(String(value || "").replace("px", ""));
     return Number.isFinite(n) ? n : 0;
   };
-  const textNodeVisualLines = (node) => {
-    const raw = node.textContent || "";
-    if (!raw.trim()) return [];
-    const lines = [];
-    let lastSpace = false;
-    for (let i = 0; i < raw.length; i += 1) {
-      const ch = raw[i];
-      const isSpace = /\s/.test(ch);
-      const range = document.createRange();
-      range.setStart(node, i);
-      range.setEnd(node, i + 1);
-      const rect = [...range.getClientRects()].map(toStageRect).filter(inStage)[0] || null;
-      range.detach();
-      if (!rect) {
-        if (isSpace && lines.length) lastSpace = true;
-        continue;
-      }
-      const cy = rect.y + rect.h / 2;
-      let line = lines[lines.length - 1];
-      if (!line || Math.abs(line.cy - cy) > Math.max(4, rect.h * 0.55)) {
-        line = { cy, text: "" };
-        lines.push(line);
-        lastSpace = false;
-      } else {
-        line.cy = (line.cy + cy) / 2;
-      }
-      if (isSpace) {
-        if (line.text && !line.text.endsWith(" ")) line.text += " ";
-        lastSpace = true;
-      } else {
-        if (lastSpace && line.text && !line.text.endsWith(" ")) line.text += " ";
-        line.text += ch;
-        lastSpace = false;
-      }
+  // Vertical text anchor for a textbox. Authors express it the natural CSS way
+  // (flex/grid centering) or explicitly via data-ppt-valign. Default top.
+  const readValign = (el, style) => {
+    const attr = (el.getAttribute("data-ppt-valign") || "").trim().toLowerCase();
+    if (attr) {
+      if (attr === "middle" || attr === "center") return "ctr";
+      if (attr === "bottom" || attr === "end") return "b";
+      return "top";
     }
-    return lines.map((line) => line.text.replace(/\s+/g, " ").trim()).filter(Boolean);
+    const disp = style.display || "";
+    if (disp.includes("flex") || disp.includes("grid")) {
+      const column = (style.flexDirection || "").startsWith("column");
+      const main = ((column ? style.justifyContent : style.alignItems) || "").toLowerCase();
+      if (main.includes("center")) return "ctr";
+      if (main.includes("flex-end") || main.includes("end")) return "b";
+    }
+    return "top";
   };
   const blockTextRunsFor = (el) => {
     const runs = [];
@@ -414,29 +395,34 @@ function extractSlide(opts) {
     };
     const walk = (node) => {
       if (node.nodeType === Node.TEXT_NODE) {
-        const lines = textNodeVisualLines(node);
-        if (!lines.length) return;
+        // Emit the text node as a SINGLE run and let PowerPoint perform line
+        // wrapping inside the box. We deliberately do NOT split at the browser's
+        // soft-wrap positions: PowerPoint's font metrics differ (notably wider
+        // for CJK), so baking the browser's visual lines as hard breaks makes PPT
+        // re-wrap each baked line -> orphaned characters and vertical overflow.
+        // Real line breaks come only from <br>/block flow (handled below).
+        const text = (node.textContent || "").replace(/\s+/g, " ");
+        if (!text.trim()) return;
         const owner = node.parentElement || el;
         const ownerStyle = getComputedStyle(owner);
         const ownerBg = cssBackground(ownerStyle);
-        lines.forEach((text, lineIndex) => {
-          if (lineIndex > 0) appendBreak();
-          runs.push({
-            text,
-            fontFamily: ownerStyle.fontFamily,
-            fontSize: px(ownerStyle.fontSize),
-            fontWeight: ownerStyle.fontWeight,
-            fontStyle: ownerStyle.fontStyle,
-            lineHeight: px(ownerStyle.lineHeight),
-            letterSpacing: px(ownerStyle.letterSpacing),
-            color: textColorFor(ownerStyle, ownerBg),
-            opacity: round(cumulativeOpacity(owner), 4),
-          });
+        runs.push({
+          text,
+          fontFamily: ownerStyle.fontFamily,
+          fontSize: px(ownerStyle.fontSize),
+          fontWeight: ownerStyle.fontWeight,
+          fontStyle: ownerStyle.fontStyle,
+          lineHeight: px(ownerStyle.lineHeight),
+          letterSpacing: px(ownerStyle.letterSpacing),
+          color: textColorFor(ownerStyle, ownerBg),
+          opacity: round(cumulativeOpacity(owner), 4),
         });
         return;
       }
       if (node.nodeType !== Node.ELEMENT_NODE) return;
       if (["SCRIPT", "STYLE", "NOSCRIPT", "SVG"].includes(node.tagName)) return;
+      // An authored <br> is an explicit, intended line break -> preserve it.
+      if (node.tagName === "BR") { appendBreak(); return; }
       const nodeStyle = getComputedStyle(node);
       if (nodeStyle.display === "none" || nodeStyle.visibility === "hidden" || (Number(nodeStyle.opacity) || 0) <= 0.015) return;
       const breaksFlow = node !== el && blockLike(nodeStyle);
@@ -621,6 +607,7 @@ function extractSlide(opts) {
       lineHeight: px(style.lineHeight),
       letterSpacing: px(style.letterSpacing),
       textAlign: style.textAlign,
+      valign: readValign(el, style),
       color: textColorFor(style, bg),
       background: bg && (bg.alpha > 0.015 || bg.gradient) ? bg : { hex: null, alpha: 0 },
       border: border || { color: { hex: null, alpha: 0 }, width: 0, radius: "0px" },
@@ -1694,7 +1681,7 @@ function authorTextBlockElement(el) {
     bold: fallbackRun.bold,
     italic: fallbackRun.italic,
     align: normalizeAlign(el.textAlign),
-    valign: "top",
+    valign: el.valign || "top",
     wrap: "square",
     autofit: "none",
     _zIndex: el.zIndex || 0,

@@ -411,9 +411,24 @@ function normalizeDom() {
   function rectRelativeToSlide(el) {
     const slide = slideFor(el);
     if (!slide) return null;
+    // Bake geometry relative to the element's *positioning context*, not the
+    // slide. An inline left/top is interpreted by the browser against the
+    // nearest positioned ancestor (offsetParent). If we baked slide-relative
+    // coordinates into a child that stays inside a positioned container
+    // (.ppt-group / .ppt-stagger / any .ppt-abs wrapper), the container's own
+    // offset would be applied a second time at render -> elements drift by the
+    // container offset (and bare `0` gets clobbered into a non-zero value).
+    // Using offsetParent keeps the value consistent with how it is laid out.
     const a = el.getBoundingClientRect();
-    const b = slide.getBoundingClientRect();
     if (!a.width && !a.height) return null;
+    let ctx = el.offsetParent;
+    // offsetParent can be null (static/fixed) or escape the slide; fall back to
+    // the slide so direct children behave exactly as before.
+    if (!ctx || ctx === document.body || ctx === document.documentElement ||
+        !slide.contains(ctx)) {
+      ctx = slide;
+    }
+    const b = ctx.getBoundingClientRect();
     return {
       left: a.left - b.left,
       top: a.top - b.top,

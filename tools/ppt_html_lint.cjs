@@ -367,6 +367,68 @@ async function main() {
         }
       }
     }
+
+    // --- Layout geometry pass -------------------------------------------------
+    // Deterministic checks that catch a whole class of silent misalignment a
+    // clean compile ("ok:true / 0 losses") does NOT catch: overlay content that
+    // pokes out of the card/panel it visually sits on (classically because a
+    // .ppt-stagger/.ppt-group is offset and its sibling overlay text was authored
+    // in the container's 0-based frame, so it lands shifted by the group offset),
+    // and text that bleeds off the slide. These are warnings, not errors, but the
+    // workflow requires reviewing them before declaring the deck done.
+    const TOL = 6; // px of allowed bleed before we consider content "outside"
+    const rectOf = (el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, w: r.width, h: r.height };
+    };
+    const hasFill = (el) => {
+      const s = getComputedStyle(el);
+      const bg = s.backgroundColor || "";
+      const m = bg.match(/rgba?\(([^)]+)\)/);
+      const alpha = m ? Number(m[1].split(",")[3] ?? 1) : (bg && bg !== "transparent" ? 1 : 0);
+      return (alpha > 0.03) || /gradient/.test(s.backgroundImage || "");
+    };
+    for (const slide of slides) {
+      const slideRect = rectOf(slide);
+      const panels = Array.from(slide.querySelectorAll(".ppt-shape")).filter((p) => {
+        const shape = (p.getAttribute("data-shape") || "rect").toLowerCase();
+        return (shape === "rect" || shape === "roundRect".toLowerCase()) && hasFill(p);
+      }).map((p) => ({ el: p, r: rectOf(p) }));
+      const contents = Array.from(slide.querySelectorAll(".ppt-textbox, .ppt-picture, .ppt-media"));
+      for (const c of contents) {
+        const cr = rectOf(c);
+        if (!cr.w || !cr.h) continue;
+        // Text that runs off the slide is almost always clipped/broken.
+        if (c.classList.contains("ppt-textbox")) {
+          if (cr.left < slideRect.left - TOL || cr.top < slideRect.top - TOL ||
+              cr.right > slideRect.right + TOL || cr.bottom > slideRect.bottom + TOL) {
+            add(c, "warn", "LAYOUT_TEXT_OFFSLIDE",
+              "Text extends past the slide edge and will be clipped.",
+              "Move it inside the slide or shrink the box; if it wraps to more lines in PowerPoint than in the browser, give the box more width/height.");
+          }
+        }
+        // Find the filled panel this content sits on top of (max intersection),
+        // skipping panels it is nested in (those share the same frame already).
+        let best = null, bestArea = 0;
+        for (const p of panels) {
+          if (p.el === c || p.el.contains(c) || c.contains(p.el)) continue;
+          const ix = Math.max(0, Math.min(cr.right, p.r.right) - Math.max(cr.left, p.r.left));
+          const iy = Math.max(0, Math.min(cr.bottom, p.r.bottom) - Math.max(cr.top, p.r.top));
+          const area = ix * iy;
+          if (area > bestArea) { bestArea = area; best = p; }
+        }
+        if (!best) continue;
+        const onPanel = bestArea >= cr.w * cr.h * 0.25; // meaningfully overlapping
+        const couldFit = cr.w <= best.r.w + 1 && cr.h <= best.r.h + 1;
+        const pokesOut = cr.left < best.r.left - TOL || cr.top < best.r.top - TOL ||
+          cr.right > best.r.right + TOL || cr.bottom > best.r.bottom + TOL;
+        if (onPanel && couldFit && pokesOut) {
+          add(c, "warn", "LAYOUT_PANEL_OVERFLOW",
+            "This content sits on a card/panel it would fit inside, but spills past the panel edge — usually a coordinate-frame mistake (e.g. authored in a .ppt-stagger/.ppt-group's local frame without adding the container's offset).",
+            "Either place this element inside the same container as the panel so they share one coordinate frame, or add the container's left/top offset to this element's position.");
+        }
+      }
+    }
     return out;
   }, vocab);
 

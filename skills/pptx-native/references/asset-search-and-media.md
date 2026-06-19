@@ -4,6 +4,35 @@ Use this when the deck needs real-world visuals or media and the user did not
 provide files. Asset search is a sourcing workflow, not a style preset: it must
 not impose layout, palette, typography, or repeated slide structure.
 
+## When To Search (And When Not)
+
+Source assets *because a specific slide needs them*, not to decorate. The goal is
+adequate sourcing — enough to serve the content, never search for its own sake.
+
+Search when:
+- The subject is concrete and recognizable, and a real image carries meaning that
+  shapes/type cannot: a real place, landmark, product, person, artwork, plant or
+  animal, dish, historical photo, or event.
+- A cover/hero or a single section anchor would land harder with one real image.
+- The user asks for photos/imagery, names a brand/product, or provides files.
+
+Do NOT search when:
+- The slide is data, process, comparison, or abstract concept — native shapes,
+  icons, and typography read cleaner and on-brand.
+- You would only be filling space. A blank, well-composed slide beats stock noise.
+- A generic stock-style result would cheapen a polished native layout.
+
+Restraint rules:
+- Let content drive the count, never a per-slide quota. Many strong decks have
+  zero or one image. A 7-slide explainer might use a single hero, not seven.
+- Prefer one excellent, on-topic image over several mediocre ones; never build a
+  stock collage.
+- For an abstract topic with one concrete anchor (e.g. "好处 / benefits of deer"),
+  one tasteful hero photo on the cover is usually the right amount — not an image
+  on every slide.
+- Brands, logos, private products, or specific people: prefer user-provided files
+  or official pages over generic search results, or skip the image.
+
 ## Search Workflow
 
 1. Decide the asset role first: hero photo, product image, texture, logo,
