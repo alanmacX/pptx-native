@@ -1,0 +1,541 @@
+{
+  "schemaVersion": "2.0",
+  "engine": "pptx_native",
+  "note": "Single source of truth for the agent. status=compiles entries pass validate + PowerPoint-open smoke. status=declared-gap entries are native PowerPoint capabilities the agent may author as intent; the compiler emits an explicit loss until the writer lands. Anything not listed at all is an undeclared loss and a bug. Vocab is reflected from author.py tables so it cannot drift from the compiler.",
+  "components": {
+    "textbox": {
+      "status": "compiles",
+      "ooxmlTarget": "p:sp / a:txBody",
+      "richRuns": true,
+      "bullets": "partial",
+      "fields": false,
+      "rotation": true,
+      "authorIRShape": {
+        "type": "text",
+        "text": "str|runs[]",
+        "x": "px",
+        "y": "px",
+        "w": "px",
+        "h": "px",
+        "rotation": "deg?"
+      }
+    },
+    "shape": {
+      "status": "compiles",
+      "ooxmlTarget": "p:sp / a:prstGeom",
+      "presets": [
+        "accentBorderCallout1",
+        "accentBorderCallout2",
+        "accentBorderCallout3",
+        "accentCallout1",
+        "accentCallout2",
+        "accentCallout3",
+        "actionButtonBackPrevious",
+        "actionButtonBeginning",
+        "actionButtonBlank",
+        "actionButtonDocument",
+        "actionButtonEnd",
+        "actionButtonForwardNext",
+        "actionButtonHelp",
+        "actionButtonHome",
+        "actionButtonInformation",
+        "actionButtonMovie",
+        "actionButtonReturn",
+        "actionButtonSound",
+        "arc",
+        "bentArrow",
+        "bentUpArrow",
+        "bevel",
+        "blockArc",
+        "borderCallout1",
+        "borderCallout2",
+        "borderCallout3",
+        "bracePair",
+        "bracketPair",
+        "callout1",
+        "callout2",
+        "callout3",
+        "can",
+        "chevron",
+        "chord",
+        "circularArrow",
+        "cloud",
+        "cloudCallout",
+        "corner",
+        "cube",
+        "curvedDownArrow",
+        "curvedLeftArrow",
+        "curvedRightArrow",
+        "curvedUpArrow",
+        "decagon",
+        "diagStripe",
+        "diamond",
+        "dodecagon",
+        "donut",
+        "doubleWave",
+        "downArrow",
+        "downArrowCallout",
+        "ellipse",
+        "ellipseRibbon",
+        "ellipseRibbon2",
+        "flowChartCollate",
+        "flowChartConnector",
+        "flowChartDecision",
+        "flowChartDelay",
+        "flowChartDisplay",
+        "flowChartDocument",
+        "flowChartExtract",
+        "flowChartInputOutput",
+        "flowChartInternalStorage",
+        "flowChartMagneticDisk",
+        "flowChartMagneticDrum",
+        "flowChartMagneticTape",
+        "flowChartManualInput",
+        "flowChartManualOperation",
+        "flowChartMerge",
+        "flowChartMultidocument",
+        "flowChartOffpageConnector",
+        "flowChartOnlineStorage",
+        "flowChartOr",
+        "flowChartPredefinedProcess",
+        "flowChartPreparation",
+        "flowChartProcess",
+        "flowChartPunchedCard",
+        "flowChartPunchedTape",
+        "flowChartSort",
+        "flowChartSummingJunction",
+        "flowChartTerminator",
+        "foldedCorner",
+        "frame",
+        "funnel",
+        "gear6",
+        "gear9",
+        "halfFrame",
+        "heart",
+        "heptagon",
+        "hexagon",
+        "homePlate",
+        "horizontalScroll",
+        "irregularSeal1",
+        "irregularSeal2",
+        "leftArrow",
+        "leftArrowCallout",
+        "leftBrace",
+        "leftBracket",
+        "leftRightArrow",
+        "leftRightArrowCallout",
+        "leftRightUpArrow",
+        "leftUpArrow",
+        "lightningBolt",
+        "line",
+        "lineInv",
+        "mathDivide",
+        "mathEqual",
+        "mathMinus",
+        "mathMultiply",
+        "mathNotEqual",
+        "mathPlus",
+        "moon",
+        "noSmoking",
+        "notchedRightArrow",
+        "octagon",
+        "parallelogram",
+        "pentagon",
+        "pie",
+        "pieWedge",
+        "plaque",
+        "plus",
+        "quadArrow",
+        "quadArrowCallout",
+        "rect",
+        "ribbon",
+        "ribbon2",
+        "rightArrow",
+        "rightArrowCallout",
+        "rightBrace",
+        "rightBracket",
+        "round1Rect",
+        "round2DiagRect",
+        "round2SameRect",
+        "roundRect",
+        "rtTriangle",
+        "smileyFace",
+        "snip1Rect",
+        "snip2DiagRect",
+        "snip2SameRect",
+        "snipRoundRect",
+        "star10",
+        "star12",
+        "star16",
+        "star24",
+        "star32",
+        "star4",
+        "star5",
+        "star6",
+        "star7",
+        "star8",
+        "straightConnector1",
+        "stripedRightArrow",
+        "sun",
+        "teardrop",
+        "trapezoid",
+        "triangle",
+        "upArrow",
+        "upArrowCallout",
+        "upDownArrow",
+        "uturnArrow",
+        "verticalScroll",
+        "wave",
+        "wedgeEllipseCallout",
+        "wedgeRectCallout",
+        "wedgeRoundRectCallout"
+      ],
+      "fill": [
+        "solid",
+        "gradient",
+        "none"
+      ],
+      "stroke": {
+        "width": true,
+        "dash": [
+          "dash",
+          "dashDot",
+          "dot",
+          "lgDash",
+          "lgDashDot",
+          "lgDashDotDot",
+          "sysDash",
+          "sysDot"
+        ],
+        "alpha": true
+      },
+      "radiusFromCss": true,
+      "rotation": true,
+      "authorIRShape": {
+        "type": "shape",
+        "shape": "<preset>",
+        "x": "px",
+        "y": "px",
+        "w": "px",
+        "h": "px",
+        "fill": "hex?",
+        "fillGradient": "obj?",
+        "line": "obj?",
+        "rotation": "deg?"
+      }
+    },
+    "freeform": {
+      "status": "compiles",
+      "ooxmlTarget": "p:sp / a:custGeom",
+      "closedFilled": true,
+      "fromSampledPoints": true,
+      "bezier": "partial",
+      "authorIRShape": {
+        "type": "freeform",
+        "points": "[[x,y]...]",
+        "closed": "bool",
+        "fill": "hex?"
+      }
+    },
+    "connector": {
+      "status": "compiles",
+      "ooxmlTarget": "p:cxnSp / a:ln",
+      "straight": true,
+      "arrowEnds": [
+        "arrow",
+        "diamond",
+        "none",
+        "oval",
+        "stealth",
+        "triangle"
+      ],
+      "bentOrCurved": false,
+      "authorIRShape": {
+        "type": "line",
+        "x1": "px",
+        "y1": "px",
+        "x2": "px",
+        "y2": "px",
+        "arrow": "bool|end-name"
+      }
+    },
+    "picture": {
+      "status": "compiles",
+      "ooxmlTarget": "p:pic / a:blip",
+      "dataImage": true,
+      "crop": false,
+      "rotation": true,
+      "authorIRShape": {
+        "type": "image",
+        "src": "data:image/*",
+        "x": "px",
+        "y": "px",
+        "w": "px",
+        "h": "px"
+      }
+    },
+    "table": {
+      "status": "compiles",
+      "ooxmlTarget": "p:graphicFrame / a:tbl",
+      "authorIRShape": {
+        "type": "table",
+        "x": "px",
+        "y": "px",
+        "w": "px",
+        "h": "px",
+        "columns": "[px]?",
+        "fontSize": "pt?",
+        "headerFill": "hex|slot?",
+        "headerColor": "hex?",
+        "rowFill": "hex|slot?",
+        "borderColor": "hex|slot?",
+        "rows": "[[cell|{text,fill,color,bold,align,valign,fontSize}...]...]"
+      },
+      "note": "Native editable table. Cell fills/colors accept theme slots. Merged cells (colspan/rowspan) not yet supported."
+    },
+    "group": {
+      "status": "declared-gap",
+      "ooxmlTarget": "p:grpSp",
+      "note": "Decompose into sibling shapes until the writer lands."
+    },
+    "chart": {
+      "status": "compiles",
+      "ooxmlTarget": "p:graphicFrame / c:chart (+ embedded xlsx)",
+      "chartTypes": [
+        "bar",
+        "column",
+        "barh",
+        "line",
+        "pie"
+      ],
+      "authorIRShape": {
+        "type": "chart",
+        "chartType": "bar|line|pie",
+        "x": "px",
+        "y": "px",
+        "w": "px",
+        "h": "px",
+        "title": "str?",
+        "legend": "bool?",
+        "categories": "[str]",
+        "series": "[{name, values:[num], color:hex|slot?}]"
+      },
+      "note": "Native data-driven chart with an embedded editable workbook (PPT 'Edit Data' opens the xlsx). Series colors accept theme slots. Cached values render without recalculation."
+    },
+    "smartArt": {
+      "status": "declared-gap",
+      "ooxmlTarget": "p:graphicFrame / dgm:*"
+    },
+    "media": {
+      "status": "declared-gap",
+      "ooxmlTarget": "p:pic / p:nvPr/a:videoFile"
+    }
+  },
+  "effects": {
+    "shadow": {
+      "status": "compiles",
+      "ooxmlTarget": "a:effectLst/a:outerShdw",
+      "params": [
+        "color",
+        "blur",
+        "distance",
+        "direction",
+        "alpha"
+      ]
+    },
+    "glow": {
+      "status": "compiles",
+      "ooxmlTarget": "a:effectLst/a:glow",
+      "params": [
+        "color",
+        "radius",
+        "alpha"
+      ]
+    },
+    "softEdge": {
+      "status": "declared-gap",
+      "ooxmlTarget": "a:effectLst/a:softEdge"
+    },
+    "reflection": {
+      "status": "declared-gap",
+      "ooxmlTarget": "a:effectLst/a:reflection"
+    }
+  },
+  "animation": {
+    "within": {
+      "entrance": [
+        "blinds",
+        "box",
+        "checkerboard",
+        "circle",
+        "diamond",
+        "dissolve",
+        "fade",
+        "plus",
+        "randombars",
+        "rise",
+        "risezoom",
+        "slidedown",
+        "slideleft",
+        "slideright",
+        "slideup",
+        "wedge",
+        "wheel",
+        "wipe",
+        "zoom"
+      ],
+      "appear": true,
+      "exit": [
+        "exit-blinds",
+        "exit-box",
+        "exit-checkerboard",
+        "exit-circle",
+        "exit-diamond",
+        "exit-dissolve",
+        "exit-fade",
+        "exit-plus",
+        "exit-randombars",
+        "exit-wedge",
+        "exit-wheel",
+        "exit-wipe"
+      ],
+      "emphasis": [
+        "grow",
+        "pulse",
+        "shrink",
+        "spin"
+      ],
+      "recolor": {
+        "status": "compiles",
+        "attr": "fill color (animClr)"
+      },
+      "loop": {
+        "repeat": "<n> | infinite",
+        "alternate": true,
+        "status": "compiles"
+      },
+      "chain": {
+        "syntax": "data-ppt-anim segments joined by '|', or a CSS animation list",
+        "status": "compiles"
+      },
+      "motionPath": {
+        "requires": [
+          "pptPath"
+        ],
+        "status": "compiles",
+        "namedPresets": "declared-gap"
+      },
+      "textBuild": {
+        "effect": "build",
+        "by": "paragraph",
+        "buildEffect": [
+          "blinds",
+          "box",
+          "checkerboard",
+          "circle",
+          "diamond",
+          "dissolve",
+          "fade",
+          "plus",
+          "randombars",
+          "wedge",
+          "wheel",
+          "wipe"
+        ]
+      },
+      "triggers": [
+        "onClick",
+        "withPrevious",
+        "afterPrevious",
+        "auto"
+      ]
+    },
+    "between": {
+      "transitions": [
+        "fade",
+        "push",
+        "split",
+        "wipe"
+      ],
+      "morph": {
+        "options": [
+          "byObject",
+          "byWord",
+          "byChar"
+        ],
+        "explicitIdentity": "morphKey",
+        "autoInference": "autoMorph",
+        "choreography": "declared-gap"
+      }
+    }
+  },
+  "native": {
+    "theme": {
+      "status": "compiles",
+      "ooxmlTarget": "ppt/theme/theme1.xml",
+      "authorIRShape": {
+        "theme": {
+          "name": "str?",
+          "colors": "{accent1..6,dk2,lt2,hlink,folHlink: hex}",
+          "fonts": "{majorLatin,majorEa,minorLatin,minorEa: str}"
+        }
+      },
+      "colorSlots": [
+        "accent1",
+        "accent2",
+        "accent3",
+        "accent4",
+        "accent5",
+        "accent6",
+        "bg1",
+        "bg2",
+        "dk1",
+        "dk2",
+        "folHlink",
+        "hlink",
+        "lt1",
+        "lt2",
+        "phClr",
+        "tx1",
+        "tx2"
+      ],
+      "note": "Deck-level palette + fonts. Any element fill/stroke/gradient stop may reference a slot by name (e.g. fill:'accent1' or 'scheme:accent1') so one theme swap restyles the whole deck."
+    },
+    "master": {
+      "status": "stub",
+      "ooxmlTarget": "ppt/slideMasters/*",
+      "note": "Single blank master/layout; no placeholder system yet."
+    },
+    "layout": {
+      "status": "stub",
+      "ooxmlTarget": "ppt/slideLayouts/*",
+      "placeholders": "declared-gap"
+    },
+    "notes": {
+      "status": "compiles",
+      "ooxmlTarget": "ppt/notesSlides/*",
+      "authorIRShape": {
+        "slide": {
+          "notes": "str (speaker notes, \\n = paragraphs)"
+        }
+      },
+      "note": "Per-slide speaker notes (presenter view). A shared notesMaster is emitted automatically when any slide has notes."
+    },
+    "section": {
+      "status": "declared-gap",
+      "ooxmlTarget": "p:sectionLst (ext)"
+    }
+  },
+  "targeting": {
+    "animationTargetKeys": [
+      "shapeId",
+      "spid",
+      "target",
+      "targetKey",
+      "sourceKey",
+      "name",
+      "id"
+    ],
+    "stableHtmlKey": "source.key"
+  }
+}

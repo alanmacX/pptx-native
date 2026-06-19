@@ -1,0 +1,63 @@
+{
+  "title": "Native PPTX Scene Sample",
+  "size": {
+    "cx": 12192000,
+    "cy": 6858000,
+    "pxWidth": 1200,
+    "pxHeight": 675
+  },
+  "slides": [
+    {
+      "name": "Sample",
+      "background": "FFFFFF",
+      "transition": "fade",
+      "elements": [
+        {
+          "type": "text",
+          "name": "Title",
+          "x": 96,
+          "y": 80,
+          "w": 820,
+          "h": 90,
+          "text": "PPTX Native Authoring",
+          "fontSize": 40,
+          "bold": true,
+          "color": "0F172A"
+        },
+        {
+          "type": "shape",
+          "shape": "roundRect",
+          "name": "Metric Card",
+          "x": 96,
+          "y": 230,
+          "w": 360,
+          "h": 180,
+          "fill": "EFF6FF",
+          "line": {
+            "fill": "BFDBFE",
+            "width": 1.2
+          },
+          "text": "editable shape\nnative text",
+          "fontSize": 24,
+          "color": "1D4ED8",
+          "bold": true,
+          "align": "center",
+          "valign": "mid"
+        },
+        {
+          "type": "line",
+          "name": "Arrow",
+          "x1": 500,
+          "y1": 320,
+          "x2": 850,
+          "y2": 320,
+          "arrow": true,
+          "line": {
+            "fill": "7C3AED",
+            "width": 3
+          }
+        }
+      ]
+    }
+  ]
+}

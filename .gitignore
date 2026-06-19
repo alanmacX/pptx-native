@@ -1,0 +1,24 @@
+# dependencies (reinstall with skills/pptx-native/scripts/setup.sh)
+node_modules/
+__pycache__/
+*.pyc
+
+# build / packaged artifacts
+dist/
+
+# generated decks & experiments (not source)
+outputs/
+retired/
+
+# large binaries
+*.pptx
+*.mp4
+*.mov
+Project 2.pptx
+
+# local eval workspace
+skills/pptx-native-workspace/
+
+# os / editor
+.DS_Store
+*.log

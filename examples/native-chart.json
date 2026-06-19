@@ -1,0 +1,23 @@
+{
+  "size": { "cx": 12192000, "cy": 6858000, "pxWidth": 1280, "pxHeight": 720 },
+  "theme": { "colors": { "accent1": "#2563EB", "accent2": "#16A34A" } },
+  "slides": [
+    {
+      "name": "chart-demo",
+      "elements": [
+        { "type": "chart", "chartType": "bar", "x": 80, "y": 90, "w": 700, "h": 520,
+          "title": "Quarterly Revenue", "legend": true,
+          "categories": ["Q1", "Q2", "Q3", "Q4"],
+          "series": [
+            { "name": "Product A", "values": [12, 15, 14, 19], "color": "accent1" },
+            { "name": "Product B", "values": [8, 11, 13, 17], "color": "accent2" }
+          ]
+        },
+        { "type": "chart", "chartType": "pie", "x": 820, "y": 120, "w": 380, "h": 380,
+          "title": "Share", "categories": ["A", "B", "C"],
+          "series": [ { "name": "Share", "values": [45, 35, 20] } ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "op": "setTextRun",
+    "slide": 1,
+    "shapeId": 5,
+    "paragraph": 1,
+    "run": 1,
+    "text": "Native PPTX-as-Code"
+  },
+  {
+    "op": "setAttrByPath",
+    "slide": 1,
+    "shapeId": 5,
+    "path": "sp/txBody[1]/p[1]/r[1]/rPr[1]",
+    "attr": "sz",
+    "value": "3200"
+  },
+  {
+    "op": "setSlideAttrByPath",
+    "slide": 9,
+    "path": "sld/AlternateContent[1]/Choice[1]/transition[1]",
+    "attr": "spd",
+    "value": "fast"
+  },
+  {
+    "op": "setTimingAttr",
+    "slide": 9,
+    "path": "timing/tnLst[1]/par[1]/cTn[1]/childTnLst[1]/seq[1]/cTn[1]/childTnLst[1]/par[3]/cTn[1]/childTnLst[1]/par[1]/cTn[1]/childTnLst[1]/par[2]/cTn[1]/childTnLst[1]/cmd[1]",
+    "attr": "cmd",
+    "value": "playFrom(1.0)"
+  }
+]

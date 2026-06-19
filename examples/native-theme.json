@@ -1,0 +1,21 @@
+{
+  "size": { "cx": 12192000, "cy": 6858000, "pxWidth": 1280, "pxHeight": 720 },
+  "theme": {
+    "name": "Brand",
+    "colors": { "accent1": "#FF5722", "accent2": "#00BCD4", "dk2": "#222222" },
+    "fonts": { "majorLatin": "Georgia", "minorLatin": "Helvetica Neue" }
+  },
+  "slides": [
+    {
+      "name": "theme-demo",
+      "elements": [
+        { "type": "shape", "shape": "roundRect", "x": 80, "y": 90, "w": 360, "h": 180,
+          "fill": "accent1", "line": { "fill": "accent2", "width": 3 } },
+        { "type": "shape", "shape": "hexagon", "x": 500, "y": 90, "w": 220, "h": 200,
+          "fill": "scheme:accent2" },
+        { "type": "text", "x": 80, "y": 320, "w": 700, "h": 80, "text": "Theme-bound shapes",
+          "fontSize": 32, "color": "111111" }
+      ]
+    }
+  ]
+}

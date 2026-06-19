@@ -1,0 +1,22 @@
+{
+  "size": { "cx": 12192000, "cy": 6858000, "pxWidth": 1280, "pxHeight": 720 },
+  "theme": { "colors": { "accent1": "#2563EB" } },
+  "slides": [
+    {
+      "name": "table-demo",
+      "elements": [
+        { "type": "table", "x": 120, "y": 120, "w": 1040, "h": 360,
+          "fontSize": 18, "headerFill": "accent1", "headerColor": "FFFFFF",
+          "rowFill": "F1F5F9", "borderColor": "CBD5E1", "color": "1F2937",
+          "columns": [360, 340, 340],
+          "rows": [
+            ["Quarter", "Revenue", "Growth"],
+            ["Q1", "$1.2M", { "text": "+8%", "color": "16A34A", "bold": true }],
+            ["Q2", "$1.5M", { "text": "+25%", "color": "16A34A", "bold": true }],
+            ["Q3", "$1.4M", { "text": "-7%", "color": "DC2626", "align": "right" }]
+          ]
+        }
+      ]
+    }
+  ]
+}

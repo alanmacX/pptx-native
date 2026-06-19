@@ -1,0 +1,22 @@
+[
+  {
+    "op": "setText",
+    "slide": 1,
+    "shapeId": 5,
+    "text": "What is PPTX-as-Code?"
+  },
+  {
+    "op": "moveShape",
+    "slide": 1,
+    "shapeId": 5,
+    "x": 4300000,
+    "y": 2850000
+  },
+  {
+    "op": "resizeShape",
+    "slide": 1,
+    "shapeId": 5,
+    "cx": 3600000,
+    "cy": 600000
+  }
+]

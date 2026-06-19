@@ -1,0 +1,9 @@
+{
+  "name": "pptx-native-engine",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Bundled PPT-native compile engine (html -> native pptx).",
+  "dependencies": {
+    "playwright": "^1.45.0"
+  }
+}

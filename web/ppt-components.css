@@ -1,0 +1,71 @@
+/*
+ * ppt-components.css — PPT-native component library (design-token model).
+ *
+ * A class binds an element to a NATIVE PowerPoint object type and the
+ * deterministic stage — nothing else. It carries ZERO visual opinion: no default
+ * color, fill, radius, font, stroke, gradient, or shadow. Every visual value is a
+ * design token the agent supplies via standard CSS / data-* attributes, and the
+ * compiler reads exactly what the agent declared. Baked-in presets would make the
+ * agent's choices implicit and cap its creativity — so there are none.
+ *
+ * Native binding  →  agent-supplied design tokens (read straight into OOXML)
+ * ------------------------------------------------------------------------------
+ * .ppt-slide      →  background (solid|linear-gradient); stage size is the canvas
+ * .ppt-textbox    →  color, font-family, font-size, font-weight, font-style,
+ *                    text-align, line-height; rich runs via inline <span>
+ * .ppt-shape      →  data-shape=<OOXML preset>; background (solid|linear-gradient),
+ *                    opacity, border (→ stroke: width/color/style), border-radius
+ *                    (roundRect adj), box-shadow (→ shadow), data-ppt-glow,
+ *                    data-ppt-rotation
+ * .ppt-line       →  border-top/left (→ stroke width/color/style), data-arrow
+ * .ppt-picture    →  src=data:image/*
+ * .ppt-group      →  (structural container; children carry their own tokens)
+ *
+ * Animation tokens: data-ppt-anim / data-ppt-build / data-ppt-morph / data-ppt-glow
+ * (see docs/ppt-html-contract.md). Slide transition: data-ppt-transition on .ppt-slide.
+ *
+ * Anything outside this vocabulary is an explicit loss, never silently guessed.
+ */
+
+/* Canvas: one fixed 16:9 stage per slide. Size is the coordinate contract, not a
+   style preset. Background is an agent token (left unset = PowerPoint default). */
+.ppt-slide {
+  position: relative;
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Absolute placement helper. Always give explicit left/top/width/height. */
+.ppt-abs { position: absolute; box-sizing: border-box; }
+
+/* TextBox -> native text box with rich runs. Structural only: keeps the agent's
+   whitespace and box model. All type tokens (color/font/size/weight/align) are
+   author-supplied. */
+.ppt-textbox {
+  position: absolute;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+}
+
+/* Shape -> preset geometry chosen by data-shape (any OOXML prstGeom name). No
+   fill/stroke/radius preset — those are tokens. The ellipse rule below is fixed
+   GEOMETRY (an ellipse is always fully round), not a customizable style, so it is
+   kept purely so live preview matches the compiled geometry. */
+.ppt-shape { position: absolute; box-sizing: border-box; }
+.ppt-shape[data-shape="ellipse"] { border-radius: 50%; }
+
+/* Connector / line -> native cxnSp. Give it a stroke token (border-top/left) and
+   an explicit box; mark arrowheads with data-arrow. An <svg><line> also works. */
+.ppt-line { position: absolute; }
+
+/* Picture -> native picture. Embed via src="data:image/*". */
+.ppt-picture { position: absolute; }
+
+/* Group -> native group. Children are absolutely placed within and carry their
+   own tokens. */
+.ppt-group { position: absolute; }
+
+/* Stagger group: children build one-by-one. Pair with data-ppt-build on this. */
+.ppt-stagger > * { display: block; }
