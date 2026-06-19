@@ -118,6 +118,18 @@ and grouped reveals where timing continuity matters.
 > one frame), or add the container's `left/top` to each overlay sibling. The
 > linter flags this as `LAYOUT_PANEL_OVERFLOW`.
 
+### `data-ppt-motif` (semantic choreography)
+```
+data-ppt-motif="timeline; axis:x; from:left; dur:520; gap:140; overlap:120"
+```
+Declare *what a group is* on its container and the compiler expands it into the
+same staggered native timing `data-ppt-sequence` produces — no per-child
+animation strings. Motifs carry no visual style. Mark children with
+`data-ppt-role` (`spine`/`node`/`card`/`left`/`right`/`center`/`item`) or let
+inference classify them. Known motifs: `timeline`, `layers`, `comparison`,
+`metricCluster` (an unknown name is reported, not silently ignored). See
+`docs/motif-choreography-proposal.md`.
+
 ### `data-ppt-morph` (slide-to-slide 平滑)
 - Mark the same object on adjacent slides with the same `data-morph` key and the
   compiler can morph it. PowerPoint only compares adjacent slides; a page cannot
