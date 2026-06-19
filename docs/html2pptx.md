@@ -100,7 +100,7 @@ The extractor currently captures:
 - rich text lines by merging adjacent visual text runs.
 - mixed inline text blocks as single text-flow boxes with native runs, so direct
   text and inline emphasis do not become overlapping independent text boxes.
-- real `data:image/*` slide-content assets as native image candidates.
+- real `data:image/*` or local/file slide-content assets as native image candidates.
 - unsupported SVG primitives, external raster references, CSS-only effects, and
   keyframes into the IR.
 - optional per-step screenshots for human visual comparison only.
@@ -124,7 +124,7 @@ The author compiler currently emits native:
 - native gradient fills for supported shape backgrounds.
 - native outer shadows for supported CSS `box-shadow` cases.
 - active slide gradient/background rectangles.
-- native picture/media parts for real data-image slide content.
+- native picture/media parts for real local/data slide content.
 - native SVG primitive coverage for rect, circle, line, polyline, polygon, sampled
   path, star-like filled paths, and SVG text.
 - sampled SVG line/path draw candidates as independently targetable native line

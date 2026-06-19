@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Media Asset Smoke</title>
+  <link rel="stylesheet" href="../web/ppt-components.css">
+  <script src="../web/ppt-anim-runtime.js"></script>
+  <style>
+    body { margin: 0; background: #111827; }
+    .ppt-slide { background: #101315; color: #f7fafc; font-family: Arial, "PingFang SC", sans-serif; }
+  </style>
+</head>
+<body>
+  <section class="ppt-slide">
+    <div class="ppt-textbox"
+      style="position:absolute;left:80px;top:70px;width:520px;height:70px;font-size:32px;font-weight:700;color:#f7fafc"
+      data-ppt-anim="compose; opacity:in; y:18; dur:420; ease:out">Native media carrier</div>
+    <video class="ppt-media"
+      src="data:video/mp4;base64,AAAA"
+      poster="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+      style="position:absolute;left:80px;top:170px;width:540px;height:304px;background:#1f2937;box-shadow:0 18px 42px rgba(0,0,0,.35)"
+      data-ppt-glow="color:#8FD3FF; radius:12; alpha:.65"
+      data-ppt-anim="compose; opacity:in; x:-42; scaleFrom:.94; scaleTo:1; dur:520; delay:80; ease:out"></video>
+    <div class="ppt-shape" data-shape="rect"
+      style="position:absolute;left:80px;top:500px;width:540px;height:4px;background:#8FD3FF"
+      data-ppt-anim="entrance:wipe; dur:360; delay:220"></div>
+  </section>
+</body>
+</html>

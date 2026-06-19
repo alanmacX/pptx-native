@@ -14,7 +14,8 @@ Use the native object with the strongest editable meaning:
 | Shapes, cards, badges | `p:sp` preset geometry | `.ppt-shape data-shape="<preset>"` | Any OOXML preset can pass through. Shape choice is semantic; visual style comes from CSS tokens. |
 | Freeform marks | `p:sp` custom geometry | SVG path/polygon | Use for bespoke diagrams, not for ordinary rectangles/cards. |
 | Connectors, arrows | `p:cxnSp`/line | `.ppt-line`, SVG line/polyline | Prefer native lines for editable workflows and diagrams. |
-| Pictures | `p:pic` | `.ppt-picture` / `img` data URI | Use only when an actual image asset is needed; never full-slide screenshots as final slides. |
+| Pictures | `p:pic` | `.ppt-picture` / `img` data URI or local file | Use only when an actual image asset is needed; never full-slide screenshots as final slides. |
+| Media | `p:pic` + `p14:media` | `.ppt-media` / `video` / `audio` | Embed local/data video/audio; choreograph the media poster with native timing. |
 | Groups | grouped/native sibling objects | `.ppt-group` as structure | Grouping is structural; children still carry their own object identity and tokens. |
 | Tables/charts/notes | native scene JSON bridge | native authoring reference | Use semantic native objects when workbook/editable data matters. Shape-drawn charts are acceptable only when the HTML path is requested and the report says so. |
 | Timing/transitions | `p:timing` / `p:transition` | `data-ppt-anim`, `data-ppt-sequence`, `data-ppt-transition`, `data-morph` | Prefer composed native primitives over video/GIF/raster fallbacks. |

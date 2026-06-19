@@ -44,6 +44,7 @@ Load only what the task needs:
 - Carrier/property/effect questions: `references/native-surface-inventory.md`
 - Motion-heavy work: `references/animation.md`
 - Design quality, choreography, and de-AI copy: `references/design-and-motion.md`
+- Asset search, local images, video, audio: `references/asset-search-and-media.md`
 - Machine manifest: `references/capabilities.json` (prefer query scripts over
   reading the full JSON into context)
 
@@ -58,6 +59,8 @@ For repo-local native scene JSON details, use `docs/native-authoring.md`.
 - Progressive image effects usually require multiple native pictures plus
   staggered/overlapped timing. Static picture blur is supported; animated blur
   radius/masks are not.
+- When real assets are needed, search/download them with provenance first and
+  embed local/data files. Do not hotlink remote media in the final PPTX.
 - Use `compose` for one object with concurrent fade/motion/scale/rotation/color.
 - Use `data-ppt-sequence` for overlapped child choreography.
 - Use Morph only across adjacent slides; do not mix Morph slides with same-slide
@@ -69,6 +72,7 @@ For repo-local native scene JSON details, use `docs/native-authoring.md`.
 
 ```bash
 node tools/ppt_surface_audit.cjs --check picture blur
+node tools/ppt_asset_search.cjs --query "solar panel closeup" --type image --download --out outputs/assets/solar
 node tools/ppt_surface_smoke.cjs --out outputs/native-surface-smoke
 skills/pptx-native/scripts/build.sh examples/animation-compose-smoke.html outputs/smoke.pptx
 python3 -m pptx_native capabilities > capabilities.json

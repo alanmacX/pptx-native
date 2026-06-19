@@ -7,6 +7,7 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const PNG_1X1 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+const MP4_STUB = "AAAA";
 
 function parseArgs(argv) {
   const out = { outDir: "outputs/native-surface-smoke" };
@@ -34,6 +35,7 @@ function run(cmd, args, opts = {}) {
 
 function scene() {
   const imageUri = `data:image/png;base64,${PNG_1X1}`;
+  const videoUri = `data:video/mp4;base64,${MP4_STUB}`;
   return {
     size: { cx: 12192000, cy: 6858000, pxWidth: 1280, pxHeight: 720 },
     title: "Native surface smoke",
@@ -76,7 +78,15 @@ function scene() {
             blur: { radius: 2 },
             reflection: { alpha: 0.25, dist: 2, blur: 2 },
           },
-          { type: "line", name: "connector-carrier", x1: 840, y1: 140, x2: 1150, y2: 140, line: { fill: "EAF2F8", width: 4, dash: "lgDash" }, arrow: "triangle" },
+          {
+            type: "media", name: "media-carrier", mediaType: "video", src: videoUri, poster: imageUri,
+            x: 790, y: 70, w: 170, h: 96,
+            shadow: { color: "000000", blur: 10, distance: 3, direction: 45, alpha: 0.3 },
+            glow: { color: "BDF5FF", radius: 7, alpha: 0.6 },
+            blur: { radius: 2 },
+            reflection: { alpha: 0.2, dist: 2, blur: 2 },
+          },
+          { type: "line", name: "connector-carrier", x1: 990, y1: 140, x2: 1180, y2: 140, line: { fill: "EAF2F8", width: 4, dash: "lgDash" }, arrow: "triangle" },
           {
             type: "text", name: "textbox-carrier", x: 60, y: 280, w: 470, h: 88,
             text: "Textbox carrier", fontSize: 28, color: "F7FAFC",
@@ -106,6 +116,7 @@ function scene() {
             { target: "shape-carrier", effect: "compose", opacity: "in", x: -36, scaleFrom: 0.96, scaleTo: 1, durationMs: 360, ease: "out" },
             { target: "freeform-carrier", effect: "compose", opacity: "in", x: -36, rotateFrom: -4, rotateTo: 0, durationMs: 360, delayMs: 90, trigger: "withPrevious" },
             { target: "picture-carrier", effect: "compose", opacity: "in", x: -36, durationMs: 360, delayMs: 180, trigger: "withPrevious" },
+            { target: "media-carrier", effect: "compose", opacity: "in", x: -30, scaleFrom: 0.94, scaleTo: 1, durationMs: 360, delayMs: 220, trigger: "withPrevious" },
             { target: "connector-carrier", effect: "motionPath", pptPath: "M 0 0 L 0.18 0", durationMs: 560, delayMs: 220, trigger: "withPrevious" },
             { target: "textbox-carrier", effect: "build", buildEffect: "fade", durationMs: 280, delayMs: 260, trigger: "withPrevious" },
             { target: "table-carrier", effect: "fade", durationMs: 300, delayMs: 420, trigger: "withPrevious" },
@@ -137,6 +148,8 @@ slide1=texts.get('ppt/slides/slide1.xml','')
 slide2=texts.get('ppt/slides/slide2.xml','')
 out={
   'pic': joined.count('<p:pic>'),
+  'media': joined.count('<p14:media'),
+  'videoFile': joined.count('<a:videoFile'),
   'shape': joined.count('<p:sp>'),
   'connector': joined.count('<p:cxnSp>'),
   'graphicFrame': joined.count('<p:graphicFrame>'),
@@ -162,15 +175,17 @@ print(json.dumps(out, indent=2))
 
 function assertExpectations(counts) {
   const expectations = {
-    pic: 1,
+    pic: 2,
+    media: 1,
+    videoFile: 1,
     connector: 1,
     graphicFrame: 2,
     table: 1,
     chart: 1,
-    blur: 3,
-    glow: 3,
-    reflection: 3,
-    shadow: 3,
+    blur: 4,
+    glow: 4,
+    reflection: 4,
+    shadow: 4,
     animEffect: 5,
     animMotion: 4,
     buildParagraph: 1,

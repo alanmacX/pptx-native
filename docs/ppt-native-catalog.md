@@ -17,13 +17,13 @@ Legend: ✅ implemented in this engine · 🟡 partial · ❌ not yet (gap to fi
 | `p:sp` + `a:prstGeom` | preset geometry (187 shapes: rect, roundRect, ellipse, triangle, arc, star, arrows, callouts…) | ✅ rect/roundRect/ellipse/line/polyline |
 | `p:sp` + `a:custGeom` | freeform / custom path (bezier `a:path`) | ✅ closed filled freeform from sampled points (`type:"freeform"`); bezier curves 🟡 |
 | `p:cxnSp` | connectors (straight/bent/curved, with arrowheads) | ✅ straight + head/tail arrows (triangle/stealth/arrow/diamond/oval); bent/curved ❌ |
-| `p:pic` | picture (crop, duotone, artistic effects) | 🟡 real data-image only |
+| `p:pic` | picture (crop, duotone, artistic effects) | 🟢 real local/data image |
 | `p:graphicFrame` → `a:tbl` | table | 🟡 basic |
 | `p:graphicFrame` → `c:chart` | chart | ❌ |
 | `p:graphicFrame` → `dgm` | SmartArt | ❌ |
 | `p:graphicFrame` → OLE | embedded object | ❌ |
 | `p:grpSp` | group | 🟡 |
-| `p:pic` + `a:videoFile`/`a:audioFile` | media | ❌ |
+| `p:pic` + `a:videoFile`/`a:audioFile` + `p14:media` | media | 🟢 local/data embed |
 | `model3D` (office ext) | 3D model | ❌ |
 
 ### 1.2 Text (`a:txBody`)
@@ -71,7 +71,7 @@ nodes inside `p:timing`.
 - `p:animMotion` — path. ✅
 - `p:animRot` — rotation (spin). ✅
 - `p:animScale` — scale (grow/shrink, pulse). ✅
-- `p:cmd` — media play/pause/stop. ❌
+- `p:cmd` — media play/pause/stop. ❌ (embed works; commands are next)
 
 **Orchestration**
 - `mainSeq` → `seq` → nested `par`/`cTn`.

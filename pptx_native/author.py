@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import json
 import base64
+import binascii
 import hashlib
 import io
+import mimetypes
 import re
 import shutil
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlparse
 from xml.sax.saxutils import escape
 
 from .ooxml import NS
@@ -23,7 +26,11 @@ EMU_PER_PX = 10160
 
 REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 OFFICE_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+MEDIA_REL = "http://schemas.microsoft.com/office/2007/relationships/media"
 PML_CT = "application/vnd.openxmlformats-officedocument.presentationml"
+_DEFAULT_POSTER_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+)
 
 # Single-source capability tables. capabilities.py reflects these so the
 # machine-readable manifest can never drift from what the compiler emits.
@@ -272,6 +279,18 @@ def _write_static_parts(root: Path, scene: dict[str, Any], cx: int, cy: int, sli
             '  <Default Extension="jpeg" ContentType="image/jpeg"/>\n'
             '  <Default Extension="png" ContentType="image/png"/>\n'
             '  <Default Extension="gif" ContentType="image/gif"/>\n'
+            '  <Default Extension="bmp" ContentType="image/bmp"/>\n'
+            '  <Default Extension="webp" ContentType="image/webp"/>\n'
+            '  <Default Extension="svg" ContentType="image/svg+xml"/>\n'
+            '  <Default Extension="mp4" ContentType="video/mp4"/>\n'
+            '  <Default Extension="m4v" ContentType="video/x-m4v"/>\n'
+            '  <Default Extension="mov" ContentType="video/quicktime"/>\n'
+            '  <Default Extension="webm" ContentType="video/webm"/>\n'
+            '  <Default Extension="mp3" ContentType="audio/mpeg"/>\n'
+            '  <Default Extension="wav" ContentType="audio/wav"/>\n'
+            '  <Default Extension="m4a" ContentType="audio/mp4"/>\n'
+            '  <Default Extension="aac" ContentType="audio/aac"/>\n'
+            '  <Default Extension="ogg" ContentType="audio/ogg"/>\n'
             f"{xlsx_default}"
             f"{override_xml}\n"
             "</Types>\n"
@@ -415,8 +434,9 @@ def _write_slide(root: Path, index: int, slide: dict[str, Any], cx: int, cy: int
 
     for element in slide.get("elements", []):
         start_shape_id = shape_id
-        name = _element_name(element, shape_id, "Image" if element.get("type") == "image" else "Shape")
-        if element.get("type") == "image":
+        element_type = element.get("type")
+        name = _element_name(element, shape_id, "Image" if element_type == "image" else "Media" if element_type == "media" else "Shape")
+        if element_type == "image":
             rid = f"rId{len(rels) + 1}"
             element_xml, shape_id, media_name = _image_element_xml(
                 root,
@@ -431,7 +451,29 @@ def _write_slide(root: Path, index: int, slide: dict[str, Any], cx: int, cy: int
             if element_xml and media_name:
                 rels.append((rid, f"{OFFICE_REL}/image", f"../media/{media_name}", None))
                 media_index += 1
-        elif element.get("type") == "chart":
+        elif element_type == "media":
+            link_rid = f"rId{len(rels) + 1}"
+            embed_rid = f"rId{len(rels) + 2}"
+            poster_rid = f"rId{len(rels) + 3}"
+            element_xml, shape_id, media_info = _media_element_xml(
+                root,
+                index,
+                media_index,
+                shape_id,
+                element,
+                sx,
+                sy,
+                link_rid,
+                embed_rid,
+                poster_rid,
+            )
+            if element_xml and media_info:
+                media_kind = media_info["kind"]
+                rels.append((link_rid, f"{OFFICE_REL}/{media_kind}", f"../media/{media_info['mediaName']}", None))
+                rels.append((embed_rid, MEDIA_REL, f"../media/{media_info['mediaName']}", None))
+                rels.append((poster_rid, f"{OFFICE_REL}/image", f"../media/{media_info['posterName']}", None))
+                media_index += 1
+        elif element_type == "chart":
             rid = f"rId{len(rels) + 1}"
             chart_n = int(element.get("_chartIndex", 1))
             element_xml = _chart_element_xml(root, chart_n, shape_id, name, element, sx, sy, rid)
@@ -445,7 +487,7 @@ def _write_slide(root: Path, index: int, slide: dict[str, Any], cx: int, cy: int
             emitted_ids = list(range(start_shape_id, shape_id))
             shape_ids.update(emitted_ids)
             _register_element_targets(target_map, element, name, emitted_ids)
-            if len(emitted_ids) == 1 and element.get("type") != "image":
+            if len(emitted_ids) == 1 and element_type not in {"image", "media"}:
                 paragraph_counts[emitted_ids[0]] = _paragraph_count(element)
 
     transition = _transition_xml(slide.get("transition"))
@@ -502,7 +544,7 @@ def _image_element_xml(
     sy: float,
     rid: str,
 ) -> tuple[str | None, int, str | None]:
-    parsed = _parse_data_image(element.get("src") or element.get("dataUri"))
+    parsed = _load_image_source(element.get("src") or element.get("dataUri") or element.get("path"))
     if not parsed:
         return None, shape_id, None
     ext, data = parsed
@@ -535,26 +577,177 @@ def _image_element_xml(
     return xml, shape_id + 1, media_name
 
 
-def _parse_data_image(src: Any) -> tuple[str, bytes] | None:
+def _media_element_xml(
+    root: Path,
+    slide_index: int,
+    media_index: int,
+    shape_id: int,
+    element: dict[str, Any],
+    sx: float,
+    sy: float,
+    link_rid: str,
+    embed_rid: str,
+    poster_rid: str,
+) -> tuple[str | None, int, dict[str, str] | None]:
+    loaded = _load_binary_source(element.get("src") or element.get("path") or element.get("dataUri"))
+    if not loaded:
+        return None, shape_id, None
+    mime, src_ext, data = loaded
+    kind = _media_kind(element, mime, src_ext)
+    ext = _media_extension_for(mime, src_ext, kind)
+    if not ext:
+        return None, shape_id, None
+    media_name = f"media{slide_index}_{media_index}.{ext}"
+    media_path = root / "ppt/media" / media_name
+    media_path.parent.mkdir(parents=True, exist_ok=True)
+    media_path.write_bytes(data)
+
+    poster = _load_image_source(
+        element.get("poster") or element.get("posterSrc") or element.get("thumbnail") or element.get("posterDataUri")
+    )
+    if poster:
+        poster_ext, poster_data = poster
+    else:
+        poster_ext, poster_data = "png", _DEFAULT_POSTER_PNG
+    poster_name = f"image{slide_index}_{media_index}_poster.{poster_ext}"
+    (root / "ppt/media" / poster_name).write_bytes(poster_data)
+
+    name = _element_name(element, shape_id, "Media")
+    x = _emu(element.get("x", 0), sx)
+    y = _emu(element.get("y", 0), sy)
+    cx = _emu(element.get("w", element.get("cx", 100)), sx)
+    cy = _emu(element.get("h", element.get("cy", 100)), sy)
+    rot = _rotation_attr(element.get("rotation")) + _flip_attr(
+        bool(element.get("flipH")), bool(element.get("flipV")))
+    shadow = _scene_shadow(element.get("shadow"), sx)
+    glow = _scene_glow(element.get("glow"), sx)
+    blur = _scene_blur(element.get("blur"), sx)
+    reflection = _scene_reflection(element.get("reflection"), sx)
+    file_tag = "audioFile" if kind == "audio" else "videoFile"
+    xml = (
+        "      <p:pic>\n"
+        "        <p:nvPicPr>\n"
+        f'          <p:cNvPr id="{shape_id}" name="{_e(name)}"><a:hlinkClick r:id="" action="ppaction://media"/></p:cNvPr>\n'
+        '          <p:cNvPicPr><a:picLocks noChangeAspect="0"/></p:cNvPicPr>\n'
+        "          <p:nvPr>\n"
+        f'            <a:{file_tag} r:link="{_e(link_rid)}"/>\n'
+        '            <p:extLst><p:ext uri="{DAA4B4D4-6D71-4841-9C94-3DE7FCFB8214}">'
+        f'<p14:media xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" r:embed="{_e(embed_rid)}"/>'
+        "</p:ext></p:extLst>\n"
+        "          </p:nvPr>\n"
+        "        </p:nvPicPr>\n"
+        f'        <p:blipFill><a:blip r:embed="{_e(poster_rid)}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>\n'
+        "        <p:spPr>\n"
+        f'          <a:xfrm{rot}><a:off x="{x}" y="{y}"/><a:ext cx="{max(cx, 1)}" cy="{max(cy, 1)}"/></a:xfrm>\n'
+        '          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>\n'
+        f"{_effects_xml(shadow, glow, 10, blur=blur, reflection=reflection)}"
+        "        </p:spPr>\n"
+        "      </p:pic>"
+    )
+    return xml, shape_id + 1, {"kind": kind, "mediaName": media_name, "posterName": poster_name}
+
+
+def _parse_data_uri(src: Any) -> tuple[str, bytes] | None:
     text = str(src or "")
-    if not text.startswith("data:image/"):
+    if not text.startswith("data:"):
         return None
     header, _, payload = text.partition(",")
     if not payload or ";base64" not in header:
         return None
     mime = header[5:].split(";", 1)[0].lower()
+    try:
+        return mime, base64.b64decode(payload)
+    except (ValueError, binascii.Error):
+        return None
+
+
+def _load_image_source(src: Any) -> tuple[str, bytes] | None:
+    loaded = _load_binary_source(src)
+    if not loaded:
+        return None
+    mime, src_ext, data = loaded
+    ext = _image_extension_for(mime, src_ext)
+    if not ext:
+        return None
+    return ext, data
+
+
+def _load_binary_source(src: Any) -> tuple[str, str, bytes] | None:
+    text = str(src or "").strip()
+    if not text:
+        return None
+    parsed = _parse_data_uri(text)
+    if parsed:
+        mime, data = parsed
+        return mime, "", data
+    if text.startswith("http://") or text.startswith("https://"):
+        return None
+    if text.startswith("file://"):
+        url = urlparse(text)
+        source_path = Path(unquote(url.path))
+    else:
+        source_path = Path(text)
+    if not source_path.is_absolute():
+        source_path = Path.cwd() / source_path
+    if not source_path.exists() or not source_path.is_file():
+        return None
+    data = source_path.read_bytes()
+    guessed, _ = mimetypes.guess_type(str(source_path))
+    return (guessed or "").lower(), source_path.suffix.lower().lstrip("."), data
+
+
+def _image_extension_for(mime: str, src_ext: str) -> str | None:
     ext = {
         "image/jpeg": "jpg",
         "image/jpg": "jpg",
         "image/png": "png",
         "image/gif": "gif",
-    }.get(mime)
-    if not ext:
-        return None
-    try:
-        return ext, base64.b64decode(payload)
-    except ValueError:
-        return None
+        "image/bmp": "bmp",
+        "image/webp": "webp",
+        "image/svg+xml": "svg",
+    }.get(str(mime or "").lower())
+    if ext:
+        return ext
+    ext = str(src_ext or "").lower().lstrip(".")
+    return ext if ext in {"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"} else None
+
+
+def _media_kind(element: dict[str, Any], mime: str, src_ext: str) -> str:
+    declared = str(element.get("mediaType") or element.get("kind") or "").strip().lower()
+    if declared in {"audio", "sound"}:
+        return "audio"
+    if declared in {"video", "movie"}:
+        return "video"
+    mime = str(mime or "").lower()
+    if mime.startswith("audio/"):
+        return "audio"
+    if mime.startswith("video/"):
+        return "video"
+    ext = str(src_ext or "").lower().lstrip(".")
+    if ext in {"mp3", "wav", "m4a", "aac", "ogg"}:
+        return "audio"
+    return "video"
+
+
+def _media_extension_for(mime: str, src_ext: str, kind: str) -> str | None:
+    ext = {
+        "video/mp4": "mp4",
+        "video/x-m4v": "m4v",
+        "video/quicktime": "mov",
+        "video/webm": "webm",
+        "audio/mpeg": "mp3",
+        "audio/mp3": "mp3",
+        "audio/wav": "wav",
+        "audio/x-wav": "wav",
+        "audio/mp4": "m4a",
+        "audio/aac": "aac",
+        "audio/ogg": "ogg",
+    }.get(str(mime or "").lower())
+    if ext:
+        return ext
+    allowed = {"mp4", "m4v", "mov", "webm"} if kind == "video" else {"mp3", "wav", "m4a", "aac", "ogg"}
+    ext = str(src_ext or "").lower().lstrip(".")
+    return ext if ext in allowed else None
 
 
 _XLSX_DECL = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'

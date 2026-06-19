@@ -39,7 +39,8 @@ component class is an explicit loss, not a guess.
 | `.ppt-shape data-shape="<preset>"` | preset shape | `data-shape` = **any** OOXML preset (165; see `capabilities.json` `components.shape.presets`) |
 | `.ppt-line` / `<svg><line>`/`<polyline>` stroked | connector/line | class / automatic; `data-arrow="end"` or `marker-end` → arrow |
 | filled `<svg><path>`/`<polygon>` | freeform (`custGeom`) | automatic from sampled points |
-| `.ppt-picture` / `<img>` (data:image) | Picture | class / automatic |
+| `.ppt-picture` / `<img>` (`data:image`, `file://`, local path) | Picture | class / automatic |
+| `.ppt-media` / `<video>` / `<audio>` | Media poster picture + embedded video/audio | class / automatic; `data-media-type="audio|video"`, optional poster |
 
 Components are **design tokens**: the class carries no default fill/color/radius/
 font — you supply every value via standard CSS (`background`, `color`, `border`,
@@ -50,7 +51,7 @@ border, radius, font/size/weight/align, linear-gradient, `box-shadow` → shadow
 
 Native objects HTML cannot express — **theme, native table, native chart, speaker
 notes** — are authored via the native-intent scene JSON, not HTML. See
-`docs/native-authoring.md`. (Still HTML gaps: grouped objects, SmartArt, media.)
+`docs/native-authoring.md`. (Still HTML gaps: grouped objects, SmartArt.)
 
 **Banned / loss-reported**: `backdrop-filter`, complex CSS `filter`,
 `mix-blend-mode`, Canvas/WebGL, pseudo-elements carrying key content, conic/radial

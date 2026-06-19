@@ -61,10 +61,12 @@ Not artificially limited.
 ```
 `runs` overrides `text` for mixed inline styling.
 
-### line / freeform / image
+### line / freeform / image / media
 `{ "type":"line", "x1","y1","x2","y2", "line":{...}, "arrow":"triangle" }` ·
 `{ "type":"freeform", "points":[[x,y]...], "closed":true, "fill":"..." }` ·
-`{ "type":"image", "src":"data:image/png;base64,...", "x","y","w","h" }`
+`{ "type":"image", "src":"data:image/png;base64,...|file:///...|/local/path", "x","y","w","h" }`
+
+`{ "type":"media", "mediaType":"video|audio", "src":"data:video/mp4;base64,...|file:///...|/local/path", "poster":"file:///poster.jpg?", "x","y","w","h" }`
 
 ### table  (`components.table`, compiles)
 ```json

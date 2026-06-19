@@ -69,7 +69,7 @@
 
   function buildSequenceItems(scope) {
     const items = [];
-    const componentSel = ".ppt-textbox,.ppt-shape,.ppt-line,.ppt-picture";
+    const componentSel = ".ppt-textbox,.ppt-shape,.ppt-line,.ppt-picture,.ppt-media";
     for (const container of Array.from(scope.querySelectorAll("[data-ppt-sequence]"))) {
       const d = parseDecl(container.getAttribute("data-ppt-sequence"));
       let targets = [];

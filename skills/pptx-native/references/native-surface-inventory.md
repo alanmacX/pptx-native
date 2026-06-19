@@ -17,7 +17,8 @@ design into supported sibling carriers instead of hoping PowerPoint will infer i
 | Card, panel, badge, icon shape | `p:sp` + `a:prstGeom` | `.ppt-shape data-shape` / scene `type:"shape"` | full preset geometry set, solid/gradient fill, stroke, dash, shadow, glow, blur, reflection, flip | pattern fill, picture fill, soft edge, 3D |
 | Freeform / custom mark | `p:sp` + `a:custGeom` | SVG path/polygon / scene `type:"freeform"` | sampled points, fill, stroke, shadow, glow, blur, reflection | true bezier authoring, edit-point semantics |
 | Connector / arrow line | `p:cxnSp` | `.ppt-line` / SVG line/polyline / scene `type:"line"` | endpoints, stroke, dash, arrow end, animation target | bent/curved connector, line effects |
-| Photo / raster asset | `p:pic` + `a:blip` | `img` / `.ppt-picture` / scene `type:"image"` | data image, geometry, rotation, shadow, glow, blur, reflection, animation target | crop, transparency, duotone, artistic effects |
+| Photo / raster asset | `p:pic` + `a:blip` | `img` / `.ppt-picture` / scene `type:"image"` | data/local image, geometry, rotation, shadow, glow, blur, reflection, animation target | crop, transparency, duotone, artistic effects |
+| Video / audio asset | `p:pic` + `a:videoFile`/`a:audioFile` + `p14:media` | `video` / `audio` / `.ppt-media` / scene `type:"media"` | local/data media, poster, geometry, rotation, shadow, glow, blur, reflection, animation target | play/pause/stop commands, trim, poster extraction |
 | Table | `p:graphicFrame` + `a:tbl` | scene JSON only | editable rows/cells, cell fill/color, borders | merged cells, HTML extraction, table effects |
 | Chart | `p:graphicFrame` + `c:chart` + xlsx | scene JSON only | editable workbook, bar/column/barh/line/pie, series color | combo/scatter/area, detailed axes, HTML extraction |
 | Group | `p:grpSp` | declared gap | none yet | group writer, group effects, group animation |
@@ -28,17 +29,17 @@ design into supported sibling carriers instead of hoping PowerPoint will infer i
 
 | Property | Compiles on | Do not put on | Notes |
 |---|---|---|---|
-| solid fill | shape, freeform, table cell | picture, connector, chart | Use theme slots or hex. |
-| linear/radial gradient | shape, freeform | table cell, picture, connector, chart | Conic is a loss. |
-| stroke/dash | shape, freeform, connector | picture, chart | Connector is best for real arrows. |
+| solid fill | shape, freeform, table cell | picture, media, connector, chart | Use theme slots or hex. |
+| linear/radial gradient | shape, freeform | table cell, picture, media, connector, chart | Conic is a loss. |
+| stroke/dash | shape, freeform, connector | picture, media, chart | Connector is best for real arrows. |
 | text/rich runs | textbox, shape text, table cell | chart labels | Text effects require shape-text carrier today. |
-| shadow | shape, freeform, picture | bare textbox, connector, table, chart | For text shadow, put text inside a shape carrier. |
-| glow | shape, freeform, picture | bare textbox, connector, table, chart | Use a thin shape for glowing scan lines. |
-| blur | shape, freeform, picture | bare textbox, connector, table, chart | Static native blur only; animated blur must be decomposed. |
-| reflection | shape, freeform, picture | bare textbox, connector, table, chart | Native `a:reflection`. |
+| shadow | shape, freeform, picture, media | bare textbox, connector, table, chart | For text shadow, put text inside a shape carrier. |
+| glow | shape, freeform, picture, media | bare textbox, connector, table, chart | Use a thin shape for glowing scan lines. |
+| blur | shape, freeform, picture, media | bare textbox, connector, table, chart | Static native blur only; animated blur must be decomposed. |
+| reflection | shape, freeform, picture, media | bare textbox, connector, table, chart | Native `a:reflection`. |
 | crop | none yet | picture | Pre-crop externally or split into multiple pictures. |
 | transparency/opacity | shape fill/text color | picture | Picture alpha is not a writer surface yet. |
-| animation target | textbox, shape, freeform, connector, picture, table, chart | group | Any emitted native object with a shape id can be targeted. |
+| animation target | textbox, shape, freeform, connector, picture, media, table, chart | group | Any emitted native object with a shape id can be targeted. |
 | paragraph build | textbox | shape text, table cell | Uses `bldP` + `spTgt/txEl/pRg`. |
 
 ## Animation Atoms
@@ -52,7 +53,7 @@ design into supported sibling carriers instead of hoping PowerPoint will infer i
 | `p:animRot` | spin, compose rotation | rotation | Works in compose with motion/scale. |
 | `p:animClr` | recolor, compose recolor | fill-color change | Shape fill only. |
 | `p:bldP` | `data-ppt-build` | paragraph reveal | Textbox only today. |
-| `p:cmd` / media | gap | play/pause/stop | Needed when media writer lands. |
+| `p:cmd` / media | gap | play/pause/stop | Media embeds compile; explicit playback commands are next. |
 
 ## Selection Rules
 
@@ -60,8 +61,8 @@ Use these before authoring:
 
 1. If the user asks for a native editable visual, never start with a screenshot.
 2. If the visual is geometric, use `shape`, `freeform`, or `connector`.
-3. If the visual is photographic, use `picture`; if only part of it changes,
-   split it into multiple pictures.
+3. If the visual is photographic, use `picture`; if it is video/audio, use
+   `media`; if only part of a picture changes, split it into multiple pictures.
 4. If an effect must progress across a region, PowerPoint usually cannot animate
    the effect parameter itself. Decompose the region into native slices and
    stagger/overlap their entrances.
@@ -83,7 +84,7 @@ node tools/ppt_surface_smoke.cjs --out outputs/native-surface-smoke
 ```
 
 The smoke creates a native PPTX that exercises textbox, shape, freeform, picture,
-connector, table, chart, effects, timing, and Morph, then unpacks the PPTX and
+media, connector, table, chart, effects, timing, and Morph, then unpacks the PPTX and
 checks for the expected OOXML nodes.
 
 ## Blur-Scan Lesson
@@ -113,4 +114,4 @@ High-value gaps that would reduce future carrier guesswork:
 5. Hyperlinks/actions (`a:hlinkClick`).
 6. Table merged cells.
 7. Named motion-path presets.
-8. Media writer plus `p:cmd` timing.
+8. `p:cmd` media play/pause/stop timing.

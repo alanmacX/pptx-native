@@ -152,6 +152,8 @@ async function main() {
       const cls = el.classList || { contains: () => false };
       if (cls.contains("ppt-shape")) return ["left", "top", "width", "height"];
       if (cls.contains("ppt-line")) return ["left", "top", "width", "height"];
+      if (cls.contains("ppt-picture")) return ["left", "top", "width", "height"];
+      if (cls.contains("ppt-media")) return ["left", "top", "width", "height"];
       if (cls.contains("ppt-textbox")) return ["left", "top", "width"];
       return [];
     };
@@ -162,7 +164,8 @@ async function main() {
       const st = getComputedStyle(el);
       const visible = st.display !== "none" && st.visibility !== "hidden" && Number(st.opacity) > 0;
       const isNative = el.classList.contains("ppt-textbox") ||
-        el.classList.contains("ppt-shape") || el.classList.contains("ppt-line");
+        el.classList.contains("ppt-shape") || el.classList.contains("ppt-line") ||
+        el.classList.contains("ppt-picture") || el.classList.contains("ppt-media");
 
       // 1. Banned element types.
       if (tag === "canvas") add(el, "error", "BANNED_ELEMENT",
@@ -288,7 +291,7 @@ async function main() {
       if (sequenceDecl) {
         const d = parseDecl(sequenceDecl);
         let targets = [];
-        const componentSel = ".ppt-textbox,.ppt-shape,.ppt-line,.ppt-picture";
+        const componentSel = ".ppt-textbox,.ppt-shape,.ppt-line,.ppt-picture,.ppt-media";
         if (d.selector) {
           try { targets = Array.from(el.querySelectorAll(d.selector)); }
           catch {
@@ -302,7 +305,7 @@ async function main() {
         if (!targets.length)
           add(el, "error", "SEQUENCE_NO_TARGETS",
             "data-ppt-sequence has no native child targets.",
-            "Put .ppt-textbox/.ppt-shape/.ppt-line/.ppt-picture elements inside the sequence container, or provide selector:<child selector>.");
+            "Put .ppt-textbox/.ppt-shape/.ppt-line/.ppt-picture/.ppt-media elements inside the sequence container, or provide selector:<child selector>.");
         for (const key of ["gap", "overlap", "dur", "delay", "x", "y", "scaleFrom", "scaleTo", "rotateFrom", "rotateTo"]) {
           if (d[key] != null && !Number.isFinite(Number(d[key])))
             add(el, "error", "SEQUENCE_BAD_NUMBER", `${key}:${d[key]} is not numeric.`,

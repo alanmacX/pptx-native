@@ -298,8 +298,12 @@ def shape_kind(shape: ET.Element) -> str:
             return "shapeWithImageFill"
         return "shape"
     if tag == "pic":
-        if shape.find(".//a:videoFile", NS) is not None or shape.find(".//p14:media", NS) is not None:
-            return "videoPosterPicture"
+        if (
+            shape.find(".//a:videoFile", NS) is not None
+            or shape.find(".//a:audioFile", NS) is not None
+            or shape.find(".//p14:media", NS) is not None
+        ):
+            return "mediaPosterPicture"
         return "picture"
     if tag == "graphicFrame":
         graphic_data = shape.find(".//a:graphicData", NS)

@@ -18,7 +18,8 @@
  *                    (roundRect adj), box-shadow (→ shadow), data-ppt-glow,
  *                    data-ppt-rotation
  * .ppt-line       →  border-top/left (→ stroke width/color/style), data-arrow
- * .ppt-picture    →  src=data:image/*
+ * .ppt-picture    →  src=data:image/* or local/file asset
+ * .ppt-media      →  video/audio src=data:* or local/file asset; optional poster
  * .ppt-group      →  (structural container; children carry their own tokens)
  *
  * Animation tokens: data-ppt-anim / data-ppt-build / data-ppt-morph / data-ppt-glow
@@ -60,8 +61,11 @@
    an explicit box; mark arrowheads with data-arrow. An <svg><line> also works. */
 .ppt-line { position: absolute; }
 
-/* Picture -> native picture. Embed via src="data:image/*". */
+/* Picture -> native picture. Embed via data URI or local/file asset. */
 .ppt-picture { position: absolute; }
+
+/* Media -> native media poster picture with embedded video/audio. */
+.ppt-media { position: absolute; }
 
 /* Group -> native group. Children are absolutely placed within and carry their
    own tokens. */

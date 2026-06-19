@@ -263,6 +263,7 @@
       "status": "compiles",
       "ooxmlTarget": "p:pic / a:blip",
       "dataImage": true,
+      "localImage": true,
       "crop": false,
       "rotation": true,
       "effects": [
@@ -273,7 +274,7 @@
       ],
       "authorIRShape": {
         "type": "image",
-        "src": "data:image/*",
+        "src": "data:image/*|file://|local path",
         "x": "px",
         "y": "px",
         "w": "px",
@@ -333,8 +334,36 @@
       "ooxmlTarget": "p:graphicFrame / dgm:*"
     },
     "media": {
-      "status": "declared-gap",
-      "ooxmlTarget": "p:pic / p:nvPr/a:videoFile"
+      "status": "compiles",
+      "ooxmlTarget": "p:pic / p:nvPr/a:videoFile|a:audioFile + p14:media",
+      "supportedMimes": [
+        "video/mp4",
+        "video/quicktime",
+        "video/webm",
+        "audio/mpeg",
+        "audio/wav",
+        "audio/mp4",
+        "audio/aac",
+        "audio/ogg"
+      ],
+      "poster": "optional image poster; blank PNG fallback",
+      "effects": [
+        "shadow",
+        "glow",
+        "blur",
+        "reflection"
+      ],
+      "authorIRShape": {
+        "type": "media",
+        "mediaType": "video|audio",
+        "src": "data:*|file://|local path",
+        "poster": "data:image|file://|local path?",
+        "x": "px",
+        "y": "px",
+        "w": "px",
+        "h": "px"
+      },
+      "note": "Media files are embedded from local/data assets. Search/import tools should download remote assets first; do not hotlink URLs in final PPTX."
     }
   },
   "effects": {
@@ -521,6 +550,7 @@
         "properties": [
           "geometry",
           "dataImage",
+          "localImage",
           "rotation",
           "flip"
         ],
@@ -547,6 +577,42 @@
           "animatedFilter"
         ],
         "note": "Partial/progressive image effects require decomposition into multiple native pictures, as in the blur-scan demo."
+      },
+      "media": {
+        "status": "compiles",
+        "ooxmlTarget": "p:pic / a:videoFile|a:audioFile + p14:media",
+        "html": "video / audio / .ppt-media",
+        "sceneType": "media",
+        "properties": [
+          "geometry",
+          "mediaType",
+          "src",
+          "poster",
+          "rotation",
+          "flip"
+        ],
+        "effects": [
+          "shadow",
+          "glow",
+          "blur",
+          "reflection"
+        ],
+        "timing": [
+          "appear",
+          "entrance",
+          "exit",
+          "emphasis",
+          "motionPath",
+          "compose",
+          "sequenceTarget"
+        ],
+        "gaps": [
+          "playbackCommands",
+          "trim",
+          "posterFrameExtraction",
+          "captions"
+        ],
+        "note": "Use local/data media assets. Playback control p:cmd is still a gap; visual entrance/exit/choreography works on the media poster picture."
       },
       "table": {
         "status": "compiles",
@@ -633,6 +699,7 @@
         ],
         "gapsOn": [
           "picture",
+          "media",
           "connector",
           "chart"
         ]
@@ -645,6 +712,7 @@
         "gapsOn": [
           "tableCell",
           "picture",
+          "media",
           "connector",
           "chart"
         ]
@@ -657,6 +725,7 @@
         ],
         "gapsOn": [
           "picture",
+          "media",
           "chart"
         ]
       },
@@ -674,7 +743,8 @@
         "compilesOn": [
           "shape",
           "freeform",
-          "picture"
+          "picture",
+          "media"
         ],
         "gapsOn": [
           "textbox",
@@ -687,7 +757,8 @@
         "compilesOn": [
           "shape",
           "freeform",
-          "picture"
+          "picture",
+          "media"
         ],
         "gapsOn": [
           "textbox",
@@ -700,7 +771,8 @@
         "compilesOn": [
           "shape",
           "freeform",
-          "picture"
+          "picture",
+          "media"
         ],
         "gapsOn": [
           "textbox",
@@ -714,7 +786,8 @@
         "compilesOn": [
           "shape",
           "freeform",
-          "picture"
+          "picture",
+          "media"
         ],
         "gapsOn": [
           "textbox",
@@ -736,6 +809,7 @@
           "freeform",
           "connector",
           "picture",
+          "media",
           "table",
           "chart"
         ],

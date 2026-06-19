@@ -212,6 +212,7 @@ function extractSlide(opts) {
   const elements = [];
   const svgElements = [];
   const images = [];
+  const media = [];
   const unsupported = [];
   let order = 0;
 
@@ -486,13 +487,19 @@ function extractSlide(opts) {
   // Only PPT-native component elements compile, and every visual value is read
   // straight from what the agent declared (design tokens) — never inferred from a
   // computed-style heuristic. Non-component visual elements become explicit losses.
-  const COMPONENT_SEL = ".ppt-textbox, .ppt-shape, .ppt-line, .ppt-picture";
+  const COMPONENT_SEL = ".ppt-textbox, .ppt-shape, .ppt-line, .ppt-picture, .ppt-media";
   const SVG_PRIMITIVES = new Set(["path", "circle", "rect", "line", "polyline", "polygon", "text"]);
   const isContainerClass = (el) =>
     el.classList.contains("ppt-slide") || el.classList.contains("ppt-group") ||
     el.classList.contains("ppt-stagger") || el.classList.contains("ppt-abs");
   const directText = (el) =>
     [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && (n.textContent || "").trim());
+  const resolveUrl = (value) => {
+    const text = String(value || "").trim();
+    if (!text) return null;
+    try { return new URL(text, document.baseURI).href; }
+    catch { return text; }
+  };
   // Decompose a computed 2D transform into the native-expressible parts:
   // rotation (deg) + flipH/flipV. Pure rotation, pure flipH (scaleX(-1)), pure
   // flipV (scaleY(-1)) and rotation+flip combos all map to PowerPoint's xfrm.
@@ -665,10 +672,35 @@ function extractSlide(opts) {
     // <img> or .ppt-picture -> native picture.
     if (tag === "img" || el.classList.contains("ppt-picture")) {
       const imgNode = tag === "img" ? el : el.querySelector("img");
-      const src = imgNode ? (imgNode.currentSrc || imgNode.src || null) : (el.getAttribute("data-src") || null);
+      const src = imgNode ? (imgNode.currentSrc || imgNode.src || null) : resolveUrl(el.getAttribute("data-src"));
       images.push({
         ...commonFor(el, style, box, tag),
         src,
+        boxShadow: style.boxShadow && style.boxShadow !== "none" ? style.boxShadow : null,
+      });
+      continue;
+    }
+
+    // <video>/<audio> or .ppt-media -> native media picture with embedded media.
+    if (tag === "video" || tag === "audio" || el.classList.contains("ppt-media")) {
+      const mediaNode = tag === "video" || tag === "audio" ? el : el.querySelector("video,audio");
+      const mediaTag = mediaNode ? mediaNode.tagName.toLowerCase() : "";
+      const sourceNode = mediaNode ? mediaNode.querySelector("source") : null;
+      const src = mediaNode
+        ? (mediaNode.currentSrc || mediaNode.src || (sourceNode ? sourceNode.src : null))
+        : resolveUrl(el.getAttribute("data-src"));
+      const declaredType = (el.getAttribute("data-media-type") || el.getAttribute("data-kind") || "").toLowerCase();
+      const mediaType = declaredType === "audio" || declaredType === "video"
+        ? declaredType
+        : mediaTag === "audio" ? "audio" : "video";
+      const poster = mediaTag === "video"
+        ? (mediaNode.getAttribute("poster") ? resolveUrl(mediaNode.getAttribute("poster")) : (mediaNode.poster || null))
+        : resolveUrl(el.getAttribute("data-poster"));
+      media.push({
+        ...commonFor(el, style, box, tag),
+        mediaType,
+        src,
+        poster,
         boxShadow: style.boxShadow && style.boxShadow !== "none" ? style.boxShadow : null,
       });
       continue;
@@ -794,6 +826,7 @@ function extractSlide(opts) {
     elements,
     svgElements,
     images,
+    media,
     unsupported,
   };
 
@@ -1012,7 +1045,7 @@ function buildAuthorScene(ir) {
       }
     }
     for (const image of slide.images || []) {
-      if (!image.src || !String(image.src).startsWith("data:image/")) continue;
+      if (!isSupportedImageSrc(image.src)) continue;
       const source = sourceRef(image);
       const box = authoredBox(image);
       elements.push({
@@ -1028,6 +1061,30 @@ function buildAuthorScene(ir) {
         _zIndex: image.zIndex || 0,
         _stackPath: image.stackPath || [image.zIndex || 0],
         _order: image.order || 0,
+        source,
+        morphKey: morphKeyForSource(source),
+      });
+    }
+    for (const item of slide.media || []) {
+      if (!isSupportedMediaSrc(item.src)) continue;
+      const source = sourceRef(item);
+      const box = authoredBox(item);
+      const poster = isSupportedImageSrc(item.poster) ? item.poster : undefined;
+      elements.push({
+        type: "media",
+        name: sourceName(item, item.mediaType === "audio" ? "audio" : "media"),
+        mediaType: item.mediaType === "audio" ? "audio" : "video",
+        src: item.src,
+        ...(poster ? { poster } : {}),
+        x: box.x,
+        y: box.y,
+        w: box.w,
+        h: box.h,
+        rotation: authorRotation(item),
+        shadow: parseBoxShadow(item.boxShadow),
+        _zIndex: item.zIndex || 0,
+        _stackPath: item.stackPath || [item.zIndex || 0],
+        _order: item.order || 0,
         source,
         morphKey: morphKeyForSource(source),
       });
@@ -1055,7 +1112,8 @@ function buildAuthorScene(ir) {
       elements,
       unsupported: {
         svgElements: Math.max(0, slide.svgElements.length - compiledSvgElements),
-        images: slide.images.length,
+        images: (slide.images || []).filter((image) => !isSupportedImageSrc(image.src)).length,
+        media: (slide.media || []).filter((item) => !isSupportedMediaSrc(item.src)).length,
         cssOnly: slide.unsupported.length,
       },
     };
@@ -1081,6 +1139,17 @@ function authorRotation(el) {
   const value = Number(el?.rotation);
   if (!Number.isFinite(value) || Math.abs(value) < 0.01) return null;
   return roundNumber(value, 3);
+}
+
+function isSupportedImageSrc(src) {
+  const text = String(src || "");
+  return text.startsWith("data:image/") || text.startsWith("file://") || /^\/[^/]/.test(text);
+}
+
+function isSupportedMediaSrc(src) {
+  const text = String(src || "");
+  return text.startsWith("data:video/") || text.startsWith("data:audio/") ||
+    text.startsWith("file://") || /^\/[^/]/.test(text);
 }
 
 function authoredBox(el) {
@@ -1249,6 +1318,7 @@ function authoredNativeSources(slide) {
   return [
     ...(slide.elements || []),
     ...(slide.images || []),
+    ...(slide.media || []),
     ...(slide.svgElements || []),
   ];
 }
@@ -1718,11 +1788,12 @@ function isDecorativeText(text) {
 function buildReport(ir, scene) {
   const unsupported = {
     svgElements: scene.slides.reduce((n, s) => n + (s.unsupported?.svgElements || 0), 0),
-    images: ir.slides.reduce((n, s) => n + s.images.filter((image) => !String(image.src || "").startsWith("data:image/")).length, 0),
+    images: ir.slides.reduce((n, s) => n + s.images.filter((image) => !isSupportedImageSrc(image.src)).length, 0),
+    media: ir.slides.reduce((n, s) => n + (s.media || []).filter((item) => !isSupportedMediaSrc(item.src)).length, 0),
     cssOnly: ir.slides.reduce((n, s) => n + s.unsupported.length, 0),
     keyframes: ir.animations.keyframes.length,
     rotatedNative: ir.slides.reduce(
-      (n, s) => n + [...(s.elements || []), ...(s.images || [])].filter((el) => authorRotation(el) != null).length,
+      (n, s) => n + [...(s.elements || []), ...(s.images || []), ...(s.media || [])].filter((el) => authorRotation(el) != null).length,
       0,
     ),
   };
@@ -1757,6 +1828,7 @@ function buildReport(ir, scene) {
     extractedElements: ir.slides.reduce((n, s) => n + s.elements.length, 0),
     authorElements: scene.slides.reduce((n, s) => n + s.elements.length, 0),
     nativeImages: scene.slides.reduce((n, s) => n + s.elements.filter((el) => el.type === "image").length, 0),
+    nativeMedia: scene.slides.reduce((n, s) => n + s.elements.filter((el) => el.type === "media").length, 0),
     unsupported,
     keyframes: ir.animations.keyframes.map((k) => k.name),
     motionCandidates: motionCandidates.slice(0, 200),
