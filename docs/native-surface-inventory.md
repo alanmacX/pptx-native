@@ -74,6 +74,18 @@ Use these before authoring:
 8. When a desired property is not in the matrix, either pre-compose only that
    asset region or add a writer gap. Do not silently drop it.
 
+## Validation
+
+Run the carrier smoke whenever this matrix or a writer branch changes:
+
+```bash
+node tools/ppt_surface_smoke.cjs --out outputs/native-surface-smoke
+```
+
+The smoke creates a native PPTX that exercises textbox, shape, freeform, picture,
+connector, table, chart, effects, timing, and Morph, then unpacks the PPTX and
+checks for the expected OOXML nodes.
+
 ## Blur-Scan Lesson
 
 The photo demo exposed the exact carrier issue this file is meant to prevent:
