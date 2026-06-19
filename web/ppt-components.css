@@ -67,5 +67,6 @@
    own tokens. */
 .ppt-group { position: absolute; }
 
-/* Stagger group: children build one-by-one. Pair with data-ppt-build on this. */
+/* Stagger group: structural only. Pair with data-ppt-sequence on the container
+   to expand child objects into overlapped native animations. */
 .ppt-stagger > * { display: block; }

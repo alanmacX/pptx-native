@@ -106,17 +106,22 @@ function normalizeDom() {
     if (!text || text === "none") return null;
     const rotate = text.match(/rotate\(\s*([-+]?\d+(?:\.\d+)?)deg\s*\)/i);
     const scale = text.match(/scale\(\s*([-+]?\d+(?:\.\d+)?)(?:\s*,\s*([-+]?\d+(?:\.\d+)?))?\s*\)/i);
-    if (rotate || scale) {
+    const translate = text.match(/translate\(\s*([-+]?\d+(?:\.\d+)?)(?:px)?(?:\s*,\s*([-+]?\d+(?:\.\d+)?)(?:px)?)?\s*\)/i);
+    const translateX = text.match(/translateX\(\s*([-+]?\d+(?:\.\d+)?)(?:px)?\s*\)/i);
+    const translateY = text.match(/translateY\(\s*([-+]?\d+(?:\.\d+)?)(?:px)?\s*\)/i);
+    if (rotate || scale || translate || translateX || translateY) {
       const scaleX = scale ? Number(scale[1]) : 1;
       const scaleY = scale ? Number(scale[2] || scale[1]) : 1;
+      const tx = translate ? Number(translate[1]) : translateX ? Number(translateX[1]) : 0;
+      const ty = translate ? Number(translate[2] || 0) : translateY ? Number(translateY[1]) : 0;
       return {
         rotationDeg: rotate ? round(Number(rotate[1]), 3) : 0,
         scaleX: round(Math.abs(scaleX), 4),
         scaleY: round(Math.abs(scaleY), 4),
         flip: (scaleX < 0) !== (scaleY < 0),
         skew: 0,
-        translateX: 0,
-        translateY: 0,
+        translateX: round(tx, 3),
+        translateY: round(ty, 3),
       };
     }
     let m = null;
@@ -316,6 +321,28 @@ function normalizeDom() {
       .map((i) => (i.scaleX + i.scaleY) / 2).filter(Number.isFinite);
     const isPulse = scales.length >= 3 && Math.max(...scales) >= 1.05 && Math.abs(scaleA - scaleB) <= 0.05;
 
+    // Composite keyframes are the natural "web motion" case: opacity, translate,
+    // scale, rotate, and fill color change together. Preserve the full intent as
+    // one low-level native composition so the writer can emit concurrent
+    // animEffect + animMotion + animScale + animRot + animClr primitives.
+    const fromBg = colorHex(from.backgroundColor), toBg = colorHex(to.backgroundColor);
+    const hasTranslate = Math.abs(dtx) >= 1 || Math.abs(dty) >= 1;
+    const hasScale = Math.abs(scaleB - scaleA) >= 0.04;
+    const hasRotate = Math.abs(drot) >= 2;
+    const hasColor = !!(fromBg && toBg && fromBg !== toBg);
+    const channelCount = [fadesIn || fadesOut, hasTranslate, hasScale, hasRotate, hasColor].filter(Boolean).length;
+    if (channelCount >= 2) {
+      const parts = ["compose"];
+      if (fadesIn) parts.push("opacity:in");
+      else if (fadesOut) parts.push("opacity:out");
+      if (hasTranslate) parts.push(`x:${dtx}`, `y:${dty}`);
+      if (hasScale) parts.push(`scaleFrom:${round(scaleA, 4)}`, `scaleTo:${round(scaleB, 4)}`);
+      if (hasRotate) parts.push(`rotateFrom:${round(a.rotationDeg, 3)}`, `rotateTo:${round(b.rotationDeg, 3)}`);
+      if (hasColor) parts.push(`recolor:#${toBg}`);
+      parts.push(timing);
+      return parts.join("; ");
+    }
+
     if (fadesIn) {
       // Combined entrance: fade + the dominant transform delta.
       if (Math.abs(dty) >= 6 && Math.abs(dty) >= Math.abs(dtx)) {
@@ -339,7 +366,6 @@ function normalizeDom() {
       return `${scaleB > scaleA ? "emphasis:grow" : "emphasis:shrink"}; scale:${pct}; ${timing}`;
     }
     // Fill-color shift -> native animClr.
-    const fromBg = colorHex(from.backgroundColor), toBg = colorHex(to.backgroundColor);
     if (fromBg && toBg && fromBg !== toBg) return `recolor:#${toBg}; ${timing}`;
 
     // Multi-step translate trajectory (bounce / wiggle / zig-zag) -> ONE native
@@ -604,6 +630,9 @@ function normalizeDom() {
   function animParts(raw) {
     return String(raw || "").split(";").map((s) => s.trim()).filter(Boolean);
   }
+  function animSegments(raw) {
+    return String(raw || "").split("|").map((s) => s.trim()).filter(Boolean);
+  }
   function partKey(part) {
     const i = part.indexOf(":");
     return (i < 0 ? part : part.slice(0, i)).trim();
@@ -613,16 +642,16 @@ function normalizeDom() {
     const raw = el.getAttribute("data-ppt-anim");
     if (!raw) return;
     let changed = false;
-    const out = animParts(raw).map((p) => {
-      const i = p.indexOf(":");
-      if (i < 0) return p;
-      const k = p.slice(0, i).trim();
-      const v = p.slice(i + 1).trim();
-      if ((k === "entrance" || k === "exit") && EMPHASIS.has(v)) { changed = true; return `emphasis:${v}`; }
-      return p;
-    });
+    const out = animSegments(raw).map((seg) => animParts(seg).map((p) => {
+        const i = p.indexOf(":");
+        if (i < 0) return p;
+        const k = p.slice(0, i).trim();
+        const v = p.slice(i + 1).trim();
+        if ((k === "entrance" || k === "exit") && EMPHASIS.has(v)) { changed = true; return `emphasis:${v}`; }
+        return p;
+      }).join("; "));
     if (changed) {
-      el.setAttribute("data-ppt-anim", out.join("; "));
+      el.setAttribute("data-ppt-anim", out.join(" | "));
       add(el, "normalize-anim", "remapped entrance/exit emphasis effect to emphasis:");
     }
   }
@@ -631,13 +660,19 @@ function normalizeDom() {
     if (!el.hasAttribute("data-morph")) return;
     const raw = el.getAttribute("data-ppt-anim");
     if (!raw) return;
-    const parts = animParts(raw);
-    const kept = parts.filter((p) => partKey(p) !== "entrance" && partKey(p) !== "exit");
-    const hasEffect = kept.some((p) => ["emphasis", "motion", "appear"].includes(partKey(p)));
-    if (kept.length !== parts.length) {
+    let changed = false;
+    const keptSegments = [];
+    for (const seg of animSegments(raw)) {
+      const parts = animParts(seg);
+      const kept = parts.filter((p) => partKey(p) !== "entrance" && partKey(p) !== "exit");
+      if (kept.length !== parts.length) changed = true;
+      const hasEffect = kept.some((p) => ["emphasis", "motion", "appear", "compose", "combo", "effect"].includes(partKey(p)));
+      if (hasEffect) keptSegments.push(kept.join("; "));
+    }
+    if (changed) {
       // Keep the declaration only if a real effect key remains; otherwise a bare
       // trigger/dur leftover would trip DSL_NO_EFFECT — drop the whole attribute.
-      if (hasEffect) el.setAttribute("data-ppt-anim", kept.join("; "));
+      if (keptSegments.length) el.setAttribute("data-ppt-anim", keptSegments.join(" | "));
       else el.removeAttribute("data-ppt-anim");
       add(el, "normalize-morph", "removed entrance/exit from data-morph object (Morph owns its motion)");
     }

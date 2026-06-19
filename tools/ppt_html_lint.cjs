@@ -95,6 +95,7 @@ async function main() {
       }
       return o;
     };
+    const animSegments = (v) => String(v || "").split("|").map((s) => s.trim()).filter(Boolean);
     const styleDecl = (el, prop) => {
       const raw = el.getAttribute("style") || "";
       const re = new RegExp(`(?:^|;)\\s*${prop.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\s*:\\s*([^;]+)`, "i");
@@ -247,7 +248,7 @@ async function main() {
       const animDecl = el.getAttribute("data-ppt-anim");
       const buildDecl = el.getAttribute("data-ppt-build");
       const morphKey = el.getAttribute("data-morph");
-      if (morphKey && animDecl && /(?:^|;)\s*(entrance|exit)\s*:/i.test(animDecl))
+      if (morphKey && animDecl && animSegments(animDecl).some((seg) => /(?:^|;)\s*(entrance|exit)\s*:/i.test(seg)))
         add(el, "error", "MORPH_OBJECT_ANIMATION",
           "A data-morph object must not also have entrance/exit animation.",
           "Remove entrance/exit from the morphing object; animate sibling labels or non-morph objects instead.");
@@ -258,26 +259,59 @@ async function main() {
 
       // 4. Validate data-ppt-anim DSL values.
       if (animDecl) {
-        const d = parseDecl(animDecl);
-        const eff = d.entrance || d.emphasis || (d.exit ? "exit:" + d.exit : null) ||
-          (d.appear !== undefined ? "appear" : null) || (d.motion || d.path ? "motion" : null) ||
-          (d.recolor ? "recolor" : null);
-        if (!eff)
-          add(el, "error", "DSL_NO_EFFECT", "data-ppt-anim has no recognized effect key.",
-            "Add one of: entrance:/exit:/emphasis:/motion:/appear/recolor.");
-        if (d.entrance && !vocab.entrance.includes(d.entrance))
-          add(el, "error", "DSL_BAD_EFFECT", `entrance:${d.entrance} is not supported.`,
-            `Use one of: ${vocab.entrance.join(", ")}.`);
-        if (d.exit && !vocab.entrance.includes(d.exit))
-          add(el, "error", "DSL_BAD_EFFECT", `exit:${d.exit} is not supported.`,
-            `Use one of: ${vocab.entrance.join(", ")}.`);
-        if (d.emphasis && !vocab.emphasis.includes(d.emphasis))
-          add(el, "error", "DSL_BAD_EFFECT", `emphasis:${d.emphasis} is not supported.`,
-            `Use one of: ${vocab.emphasis.join(", ")}.`);
+        for (const segment of animSegments(animDecl)) {
+          const d = parseDecl(segment);
+          const isCompose = d.compose !== undefined || d.combo !== undefined ||
+            d.effect === "compose" || d.effect === "combo" || d.entrance === "compose";
+          const eff = isCompose ? "compose" : d.entrance || d.emphasis || (d.exit ? "exit:" + d.exit : null) ||
+            (d.appear !== undefined ? "appear" : null) || (d.motion || d.path ? "motion" : null) ||
+            (d.recolor ? "recolor" : null);
+          if (!eff)
+            add(el, "error", "DSL_NO_EFFECT", "data-ppt-anim has no recognized effect key.",
+              "Add one of: compose, entrance:/exit:/emphasis:/motion:/appear/recolor.");
+          if (d.entrance && !isCompose && !vocab.entrance.includes(d.entrance))
+            add(el, "error", "DSL_BAD_EFFECT", `entrance:${d.entrance} is not supported.`,
+              `Use one of: ${vocab.entrance.join(", ")} or compose.`);
+          if (d.exit && !vocab.entrance.includes(d.exit))
+            add(el, "error", "DSL_BAD_EFFECT", `exit:${d.exit} is not supported.`,
+              `Use one of: ${vocab.entrance.join(", ")}.`);
+          if (d.emphasis && !vocab.emphasis.includes(d.emphasis))
+            add(el, "error", "DSL_BAD_EFFECT", `emphasis:${d.emphasis} is not supported.`,
+              `Use one of: ${vocab.emphasis.join(", ")}.`);
+          const trig = d.trigger;
+          if (trig && !vocab.triggers.map((t) => t.toLowerCase()).includes(String(trig).toLowerCase()))
+            add(el, "error", "DSL_BAD_TRIGGER", `trigger:${trig} is not a PPT trigger.`,
+              "Use onClick / withPrev / afterPrev / auto. Banned: hover, scroll, infinite.");
+        }
+      }
+      const sequenceDecl = el.getAttribute("data-ppt-sequence");
+      if (sequenceDecl) {
+        const d = parseDecl(sequenceDecl);
+        let targets = [];
+        const componentSel = ".ppt-textbox,.ppt-shape,.ppt-line,.ppt-picture";
+        if (d.selector) {
+          try { targets = Array.from(el.querySelectorAll(d.selector)); }
+          catch {
+            add(el, "error", "SEQUENCE_BAD_SELECTOR", `Invalid data-ppt-sequence selector: ${d.selector}.`,
+              "Use a valid CSS selector scoped to the sequence container.");
+          }
+        } else {
+          targets = Array.from(el.querySelectorAll(componentSel));
+        }
+        targets = targets.filter((target) => target.matches(componentSel));
+        if (!targets.length)
+          add(el, "error", "SEQUENCE_NO_TARGETS",
+            "data-ppt-sequence has no native child targets.",
+            "Put .ppt-textbox/.ppt-shape/.ppt-line/.ppt-picture elements inside the sequence container, or provide selector:<child selector>.");
+        for (const key of ["gap", "overlap", "dur", "delay", "x", "y", "scaleFrom", "scaleTo", "rotateFrom", "rotateTo"]) {
+          if (d[key] != null && !Number.isFinite(Number(d[key])))
+            add(el, "error", "SEQUENCE_BAD_NUMBER", `${key}:${d[key]} is not numeric.`,
+              "Use numeric millisecond or transform values, e.g. gap:90; y:16; scaleFrom:.96.");
+        }
         const trig = d.trigger;
         if (trig && !vocab.triggers.map((t) => t.toLowerCase()).includes(String(trig).toLowerCase()))
-          add(el, "error", "DSL_BAD_TRIGGER", `trigger:${trig} is not a PPT trigger.`,
-            "Use onClick / withPrev / afterPrev / auto. Banned: hover, scroll, infinite.");
+          add(el, "error", "SEQUENCE_BAD_TRIGGER", `trigger:${trig} is not a PPT trigger.`,
+            "Use onClick / withPrev / afterPrev / auto.");
       }
     }
 

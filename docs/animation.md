@@ -102,6 +102,14 @@ The author compiler now emits native `p:timing` for:
 - emphasis effects: `spin` (`p:animRot`, `spins`/`byDeg`), `grow`/`shrink`
   (`p:animScale` with `scale` percent), and `pulse` (scale + `autoRev`).
 - `motionPath` when a raw PowerPoint `pptPath`/`path` is supplied.
+- `compose` for one concurrent native timing group combining visibility/fade,
+  motion path, scale, rotation, and fill-color change. This is the bridge from
+  richer HTML keyframes to editable PowerPoint: a single CSS entrance can become
+  `p:set` + `p:animEffect` + `p:animMotion` + `p:animScale` + `p:animRot` +
+  `p:animClr` children under one timing node.
+- `data-ppt-sequence` for style-neutral choreography: one container declaration
+  expands child native objects into a staggered/overlapped set of effects with
+  deterministic delays.
 
 Note: an empty `<p:bldLst/>` is schema-invalid, so the writer omits it on slides
 whose animations are emphasis/motion only (no entrance/build).
@@ -166,6 +174,8 @@ the same declarative DSL before lint/extract:
 | `transform:rotate(a) -> rotate(b)` | `emphasis:spin; byDeg:b-a` | `p:animRot` |
 | `transform:scale(a) -> scale(b)` | `emphasis:grow/shrink; scale:b*100` | `p:animScale` |
 | `scale(1) -> scale(n) -> scale(1)` | `emphasis:pulse; scale:n*100` | `p:animScale autoRev` |
+| `opacity + translate + scale + rotate + fill` | `compose; opacity:in; x; y; scaleFrom; scaleTo; rotateFrom; rotateTo; recolor` | concurrent native behavior children |
+| container cascade | `data-ppt-sequence="stagger; selector:.card; gap:90; overlap:160; ..."` | multiple target effects with calculated delays |
 
 The normalizer only converts effects it can prove from the keyframe endpoints.
 Unsupported CSS animation/transition is neutralized and reported as a

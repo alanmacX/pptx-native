@@ -134,6 +134,21 @@ def build_capabilities() -> dict[str, Any]:
                           "status": COMPILES},
                 "motionPath": {"requires": ["pptPath"], "status": COMPILES,
                                "namedPresets": GAP},
+                "compose": {
+                    "status": COMPILES,
+                    "intent": "Combine native fade, motion path, scale, rotation, and fill-color behaviors "
+                              "into one concurrent timing node.",
+                    "params": ["opacity", "x", "y", "scaleFrom", "scaleTo", "rotateFrom", "rotateTo",
+                               "recolor", "dur", "delay", "ease", "repeat", "alt"],
+                },
+                "sequence": {
+                    "status": COMPILES,
+                    "attribute": "data-ppt-sequence",
+                    "intent": "Expand one container declaration into staggered/overlapped child animations "
+                              "without imposing visual style.",
+                    "params": ["selector", "gap", "overlap", "dur", "delay", "ease", "x", "y",
+                               "scaleFrom", "scaleTo", "rotateFrom", "rotateTo"],
+                },
                 "textBuild": {
                     "effect": "build",
                     "by": "paragraph",

@@ -49,6 +49,11 @@ you'd design any web page. This file describes only the **mechanics**: how to au
 and what compiles to native PowerPoint. It deliberately holds no opinion about what
 looks good; don't expect (or impose) a house style.
 
+For design-heavy, animation-heavy, or "make it not AI-looking" tasks, read
+`references/design-and-motion.md`. It explains the style-neutral native component
+coverage, motion grammar, sequence choreography, and copy hygiene rules. It is not
+a template or house style.
+
 ## The authoring contract — just write normal HTML/CSS
 
 Author a slide the way you'd build a 1280×720 web page. The tool renders it in a
@@ -84,7 +89,7 @@ it.) The only thing that must end up 1280×720 is the slide `<section>`.
 Write animation as you would on the web; the compiler maps it to native PowerPoint
 timing. Supported, read straight from your CSS:
 - `opacity` + `transform` `translateX/Y`, `scale`, `rotate` — together (a fade that
-  also rises/slides/zooms is one native combined entrance).
+  also rises/slides/zooms/turns is one native composite timing group).
 - `animation-duration`, `animation-delay`, `animation-timing-function`
   (`ease`/`ease-in`/`ease-out`/`ease-in-out`/`linear`/`cubic-bezier()` → mapped).
 - `animation-iteration-count` (`N`/`infinite`) + `animation-direction:alternate`
@@ -94,6 +99,10 @@ timing. Supported, read straight from your CSS:
   `animation: riseIn .5s, pulse .5s 1s, fadeOut .4s 2s` rises in, pulses, then exits.
 - **Multi-step `@keyframes`** that move an element (translate at 0/30/60/100%) are
   traced into one native motion path — bounces, wiggles, zig-zags.
+- **Composite motion** maps to concurrent native behaviors. A single CSS keyframe
+  with opacity + translate + scale + rotate + fill color becomes one `compose`
+  effect made of PowerPoint `animEffect`, `animMotion`, `animScale`, `animRot`,
+  and `animClr`, not a raster/video fallback.
 
 Example:
 ```html
@@ -116,6 +125,11 @@ with a minimal `data-*` attribute:
 - **Slide transition:** `data-ppt-transition="fade|push|wipe|split|morph"` on a section.
 - **Soft glow:** `data-ppt-glow="color:#A78BFA; radius:18; alpha:0.9"` (CSS has no glow).
 - **Per-paragraph text reveal:** `data-ppt-build="byParagraph; effect:fade"`.
+- **Native composite animation:** `data-ppt-anim="compose; opacity:in; x:-90; y:24;
+  scaleFrom:.92; scaleTo:1; rotateFrom:-4; rotateTo:0; dur:650; ease:out"`.
+- **Staggered choreography:** put `data-ppt-sequence` on a container to expand
+  child native objects into overlapped timing: `data-ppt-sequence="stagger;
+  selector:.card; gap:90; overlap:160; y:24; scaleFrom:.96; scaleTo:1; dur:540"`.
 
 (There is also a terse `data-ppt-anim` shorthand for the CSS animations above; it
 maps to the exact same native behaviors, so reach for plain CSS unless you want the

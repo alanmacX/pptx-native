@@ -79,6 +79,11 @@ data-ppt-anim="entrance:fade; trigger:afterPrev; dur:450; delay:0"
 - `emphasis:` ∈ spin / grow / shrink / pulse.
   - spin extras: `spins`, `byDeg`. scale extras: `scale` (percent).
 - `motion:` with `path:"M 0 0 L 0.2 0"` (PowerPoint relative path units).
+- `compose` for one native timing group made from concurrent primitives:
+  `data-ppt-anim="compose; opacity:in; x:-90; y:24; scaleFrom:.92; scaleTo:1; rotateFrom:-4; rotateTo:0; dur:650"`.
+  Use it for polished web-style entrances where fade, settle, zoom, turn, and
+  color shift happen together. It compiles to native `animEffect`, `animMotion`,
+  `animScale`, `animRot`, and `animClr` children.
 - `trigger:` ∈ onClick / withPrev / afterPrev / auto. **Banned triggers**: scroll,
   hover, infinite loop (PowerPoint cannot store them).
 
@@ -87,6 +92,15 @@ data-ppt-anim="entrance:fade; trigger:afterPrev; dur:450; delay:0"
 data-ppt-build="byParagraph; trigger:onClick; effect:wipe"
 ```
 Compiles to native `bldP build="p"` — one reveal per paragraph.
+
+### `data-ppt-sequence` (container choreography)
+```
+data-ppt-sequence="stagger; selector:.card; gap:90; overlap:160; y:24; scaleFrom:.96; scaleTo:1; dur:540; ease:out"
+```
+Put this on a structural container. It expands child native objects into a
+staggered sequence of native timing effects. The sequence does not carry visual
+style; children still get their own CSS tokens. Use it for cascades, handoffs,
+and grouped reveals where timing continuity matters.
 
 ### `data-ppt-morph` (slide-to-slide 平滑)
 - Mark the same object on adjacent slides with the same `data-morph` key and the

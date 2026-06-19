@@ -21,6 +21,7 @@
     }
     return o;
   }
+  const animSegments = (v) => String(v || "").split("|").map((s) => s.trim()).filter(Boolean);
 
   const num = (v, d) => (v == null || v === "" ? d : Number(v));
 
@@ -50,10 +51,63 @@
     return { opacity: [0, 1] };
   }
 
+  function itemFromDecl(el, d) {
+    const isCompose = d.compose !== undefined || d.combo !== undefined ||
+      d.effect === "compose" || d.effect === "combo" || d.entrance === "compose";
+    const opacity = String(d.opacity || d.fade || "").toLowerCase();
+    const exit = !!d.exit || opacity === "out";
+    const effect = isCompose ? "compose" : d.entrance || d.exit || (d.appear !== undefined ? "appear" : null) ||
+      d.emphasis || (d.motion || d.path ? "motionPath" : null) || "fade";
+    const entrance = (isCompose && opacity === "in") || (!!(d.entrance || d.appear !== undefined) && !exit);
+    return { el, effect, exit, entrance, opacity,
+      trigger: normTrigger(d.trigger), dur: num(d.dur, 450), delay: num(d.delay, 0),
+      spins: num(d.spins, 1), scale: num(d.scale, null), path: d.path || d.motion || "",
+      x: num(d.x ?? d.dx, 0), y: num(d.y ?? d.dy, 0),
+      scaleFrom: num(d.scaleFrom, null), scaleTo: num(d.scaleTo, null),
+      rotateFrom: num(d.rotateFrom, null), rotateTo: num(d.rotateTo, null) };
+  }
+
+  function buildSequenceItems(scope) {
+    const items = [];
+    const componentSel = ".ppt-textbox,.ppt-shape,.ppt-line,.ppt-picture";
+    for (const container of Array.from(scope.querySelectorAll("[data-ppt-sequence]"))) {
+      const d = parseDecl(container.getAttribute("data-ppt-sequence"));
+      let targets = [];
+      if (d.selector) {
+        try { targets = Array.from(container.querySelectorAll(d.selector)); }
+        catch (e) { targets = []; }
+      } else {
+        targets = Array.from(container.querySelectorAll(componentSel));
+      }
+      targets = targets.filter((el) => el.matches(componentSel));
+      const dur = num(d.dur, 520);
+      const gap = num(d.gap ?? d.stagger, Math.max(0, dur - num(d.overlap, 0)));
+      const baseDelay = num(d.delay, 0);
+      const base = { ...d };
+      if (!(d.compose || d.combo || d.effect || d.entrance || d.exit || d.emphasis || d.motion || d.path || d.appear || d.recolor)) {
+        base.compose = true;
+        base.opacity = d.opacity || "in";
+        base.x = d.x ?? d.dx ?? -42;
+        base.y = d.y ?? d.dy ?? 16;
+        base.scaleFrom = d.scaleFrom ?? .96;
+        base.scaleTo = d.scaleTo ?? 1;
+        base.dur = d.dur ?? 520;
+      }
+      targets.forEach((el, index) => {
+        items.push(itemFromDecl(el, {
+          ...base,
+          trigger: index === 0 ? (d.trigger || "afterPrev") : "withPrev",
+          delay: baseDelay + index * gap,
+        }));
+      });
+    }
+    return items;
+  }
+
   function buildItems(root) {
     const scope = root || document;
     const nodes = Array.from(scope.querySelectorAll("[data-ppt-anim],[data-ppt-build]"));
-    const items = [];
+    const items = buildSequenceItems(scope);
     for (const el of nodes) {
       const animRaw = el.getAttribute("data-ppt-anim");
       const buildRaw = el.getAttribute("data-ppt-build");
@@ -69,14 +123,10 @@
         }
         continue;
       }
-      const d = parseDecl(animRaw);
-      const exit = !!d.exit;
-      const effect = d.entrance || d.exit || (d.appear !== undefined ? "appear" : null) ||
-        d.emphasis || (d.motion || d.path ? "motionPath" : null) || "fade";
-      const entrance = !!(d.entrance || d.appear !== undefined) && !exit;
-      items.push({ el, effect, exit, entrance,
-        trigger: normTrigger(d.trigger), dur: num(d.dur, 450), delay: num(d.delay, 0),
-        spins: num(d.spins, 1), scale: num(d.scale, null), path: d.path || d.motion || "" });
+      for (const seg of animSegments(animRaw)) {
+        const d = parseDecl(seg);
+        items.push(itemFromDecl(el, d));
+      }
     }
     return items;
   }
@@ -138,11 +188,38 @@
     return { transform: ["translate(0,0)", `translate(${dx}px,${dy}px)`] };
   }
 
+  function composeTransform(x, y, scale, rotate) {
+    const parts = [];
+    if (x || y) parts.push(`translate(${x || 0}px,${y || 0}px)`);
+    if (scale != null) parts.push(`scale(${scale})`);
+    if (rotate != null) parts.push(`rotate(${rotate}deg)`);
+    return parts.length ? parts.join(" ") : "none";
+  }
+
+  function composeKeyframes(it) {
+    const out = {};
+    const outMotion = it.opacity === "out" || it.exit;
+    const fromX = outMotion ? 0 : it.x;
+    const fromY = outMotion ? 0 : it.y;
+    const toX = outMotion ? it.x : 0;
+    const toY = outMotion ? it.y : 0;
+    const transforms = [
+      composeTransform(fromX, fromY, it.scaleFrom, it.rotateFrom),
+      composeTransform(toX, toY, it.scaleTo, it.rotateTo),
+    ];
+    if (transforms[0] !== "none" || transforms[1] !== "none") out.transform = transforms;
+    if (it.opacity === "in") out.opacity = [0, 1];
+    else if (it.opacity === "out" || it.exit) out.opacity = [1, 0];
+    return Object.keys(out).length ? out : { opacity: [0, 1] };
+  }
+
   function playItem(it) {
     it.el.style.visibility = "visible";
     let kf;
     if (it.effect === "spin") {
       kf = { transform: [`rotate(0deg)`, `rotate(${360 * (it.spins || 1)}deg)`] };
+    } else if (it.effect === "compose") {
+      kf = composeKeyframes(it);
     } else if (it.effect === "motionPath") {
       kf = motionKeyframes(it);
     } else {

@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { margin:0; background:#0f172a; }
+    .card {
+      position:absolute;
+      top:252px;
+      width:248px;
+      height:164px;
+      border-radius:26px;
+      box-shadow:0 26px 58px rgba(13, 28, 45, .24);
+      border:1px solid rgba(17, 24, 39, .12);
+      background:#fff;
+    }
+  </style>
+</head>
+<body>
+  <section class="ppt-slide" id="s1" style="width:1280px;height:720px;background:linear-gradient(135deg,#F7F4ED,#DDEDE8);">
+    <div class="ppt-textbox" id="title"
+      data-ppt-anim="compose; opacity:in; x:-80; y:18; scaleFrom:.94; scaleTo:1; rotateFrom:-2; rotateTo:0; dur:620; ease:out"
+      style="position:absolute;left:92px;top:80px;width:760px;height:86px;color:#10201F;font-family:Aptos Display,Arial,sans-serif;font-size:50px;font-weight:800;">
+      Sequence choreography smoke
+    </div>
+    <div id="card-sequence"
+      data-ppt-sequence="stagger; selector:.card; gap:95; overlap:180; y:34; scaleFrom:.94; scaleTo:1; rotateFrom:-2; rotateTo:0; dur:560; ease:out"
+      style="position:absolute;left:0;top:0;width:1280px;height:720px;">
+      <div class="ppt-shape card" id="card-a" data-shape="roundRect" style="left:92px;background:#FFFFFF;"></div>
+      <div class="ppt-shape card" id="card-b" data-shape="roundRect" style="left:372px;background:#E7F5F1;"></div>
+      <div class="ppt-shape card" id="card-c" data-shape="roundRect" style="left:652px;background:#FFF2E8;"></div>
+      <div class="ppt-shape card" id="card-d" data-shape="roundRect" style="left:932px;background:#F8E9EA;"></div>
+    </div>
+    <div class="ppt-textbox" id="note"
+      data-ppt-anim="entrance:rise; dist:18; trigger:afterPrev; dur:520; delay:520; ease:out"
+      style="position:absolute;left:96px;top:498px;width:820px;height:54px;color:#43504D;font-family:Aptos,Arial,sans-serif;font-size:23px;">
+      One container expands into four overlapped native compose animations.
+    </div>
+  </section>
+</body>
+</html>

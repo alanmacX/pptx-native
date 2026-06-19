@@ -373,9 +373,16 @@
         "fade",
         "plus",
         "randombars",
+        "rise",
+        "risezoom",
+        "slidedown",
+        "slideleft",
+        "slideright",
+        "slideup",
         "wedge",
         "wheel",
-        "wipe"
+        "wipe",
+        "zoom"
       ],
       "appear": true,
       "exit": [
@@ -398,12 +405,63 @@
         "shrink",
         "spin"
       ],
+      "recolor": {
+        "status": "compiles",
+        "attr": "fill color (animClr)"
+      },
+      "loop": {
+        "repeat": "<n> | infinite",
+        "alternate": true,
+        "status": "compiles"
+      },
+      "chain": {
+        "syntax": "data-ppt-anim segments joined by '|', or a CSS animation list",
+        "status": "compiles"
+      },
       "motionPath": {
         "requires": [
           "pptPath"
         ],
         "status": "compiles",
         "namedPresets": "declared-gap"
+      },
+      "compose": {
+        "status": "compiles",
+        "intent": "Combine native fade, motion path, scale, rotation, and fill-color behaviors into one concurrent timing node.",
+        "params": [
+          "opacity",
+          "x",
+          "y",
+          "scaleFrom",
+          "scaleTo",
+          "rotateFrom",
+          "rotateTo",
+          "recolor",
+          "dur",
+          "delay",
+          "ease",
+          "repeat",
+          "alt"
+        ]
+      },
+      "sequence": {
+        "status": "compiles",
+        "attribute": "data-ppt-sequence",
+        "intent": "Expand one container declaration into staggered/overlapped child animations without imposing visual style.",
+        "params": [
+          "selector",
+          "gap",
+          "overlap",
+          "dur",
+          "delay",
+          "ease",
+          "x",
+          "y",
+          "scaleFrom",
+          "scaleTo",
+          "rotateFrom",
+          "rotateTo"
+        ]
       },
       "textBuild": {
         "effect": "build",

@@ -1605,6 +1605,8 @@ def _timing_xml(
         if "_prg" in a:
             grp = int(a.get("_grpId", 0))
             build_entries[spid] = f'<p:bldP spid="{spid}" grpId="{grp}" build="p"/>'
+        elif effect == "compose" and _compose_is_entrance(a):
+            build_entries.setdefault(spid, f'<p:bldP spid="{spid}" grpId="0"/>')
         elif _is_entrance_effect(effect):
             build_entries.setdefault(spid, f'<p:bldP spid="{spid}" grpId="0"/>')
     build_list = "".join(build_entries[spid] for spid in sorted(build_entries))
@@ -1663,6 +1665,112 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
     ease = _ease_attr(animation)
     if effect == "appear":
         duration = max(1, duration)
+    if effect == "compose":
+        opacity = _compose_opacity(animation)
+        ctn_id = node_id
+        nid = node_id + 1
+        repeat = _repeat_attr(animation)
+        autorev = _autorev_attr(animation)
+        children = []
+        if opacity == "in":
+            set_id = nid
+            nid += 1
+            children.append(
+                "                                <p:set>\n"
+                "                                  <p:cBhvr>\n"
+                f'                                    <p:cTn id="{set_id}" dur="1" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst></p:cTn>\n'
+                f'                                    <p:tgtEl>{sp_tgt}</p:tgtEl>\n'
+                "                                    <p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst>\n"
+                "                                  </p:cBhvr>\n"
+                '                                  <p:to><p:strVal val="visible"/></p:to>\n'
+                "                                </p:set>\n"
+            )
+        if opacity in {"in", "out"}:
+            fade_id = nid
+            nid += 1
+            transition = "in" if opacity == "in" else "out"
+            children.append(
+                f'                                <p:animEffect transition="{transition}" filter="fade">\n'
+                f'                                  <p:cBhvr><p:cTn id="{fade_id}" dur="{duration}"{repeat}{ease}{autorev} fill="hold"/><p:tgtEl>{sp_tgt}</p:tgtEl></p:cBhvr>\n'
+                "                                </p:animEffect>\n"
+            )
+        path = str(animation.get("pptPath") or animation.get("path") or "").strip()
+        x = _float_or_none(animation.get("x", animation.get("dx")))
+        y = _float_or_none(animation.get("y", animation.get("dy")))
+        if not path and (x is not None or y is not None):
+            fx = (x or 0.0) / 1280.0
+            fy = (y or 0.0) / 720.0
+            if opacity == "out":
+                path = f"M 0 0 L {fx:.4f} {fy:.4f}"
+            else:
+                path = f"M {fx:.4f} {fy:.4f} L 0 0"
+        if path:
+            motion_id = nid
+            nid += 1
+            origin = str(animation.get("origin", "layout"))
+            children.append(
+                f'                                <p:animMotion origin="{_e(origin)}" path="{_e(path)}" pathEditMode="relative" rAng="0">\n'
+                f'                                  <p:cBhvr><p:cTn id="{motion_id}" dur="{duration}"{repeat}{ease}{autorev} fill="hold"/><p:tgtEl>{sp_tgt}</p:tgtEl><p:attrNameLst><p:attrName>ppt_x</p:attrName><p:attrName>ppt_y</p:attrName></p:attrNameLst></p:cBhvr>\n'
+                '                                  <p:rCtr x="0" y="0"/>\n'
+                "                                </p:animMotion>\n"
+            )
+        scale_from = _float_or_none(animation.get("scaleFrom"))
+        scale_to = _float_or_none(animation.get("scaleTo"))
+        if scale_from is not None or scale_to is not None:
+            scale_id = nid
+            nid += 1
+            sf = int(round((scale_from if scale_from is not None else 1.0) * 100000))
+            st = int(round((scale_to if scale_to is not None else 1.0) * 100000))
+            children.append(
+                "                                <p:animScale>\n"
+                f'                                  <p:cBhvr><p:cTn id="{scale_id}" dur="{duration}"{repeat}{ease}{autorev} fill="hold"/><p:tgtEl>{sp_tgt}</p:tgtEl></p:cBhvr>\n'
+                f'                                  <p:from x="{sf}" y="{sf}"/><p:to x="{st}" y="{st}"/>\n'
+                "                                </p:animScale>\n"
+            )
+        rotate_from = _float_or_none(animation.get("rotateFrom"))
+        rotate_to = _float_or_none(animation.get("rotateTo"))
+        if rotate_from is not None or rotate_to is not None:
+            rot_id = nid
+            nid += 1
+            rf = int(round((rotate_from or 0.0) * 60000))
+            rt = int(round((rotate_to or 0.0) * 60000))
+            children.append(
+                f'                                <p:animRot from="{rf}" to="{rt}">\n'
+                f'                                  <p:cBhvr><p:cTn id="{rot_id}" dur="{duration}"{repeat}{ease}{autorev} fill="hold"/><p:tgtEl>{sp_tgt}</p:tgtEl><p:attrNameLst><p:attrName>r</p:attrName></p:attrNameLst></p:cBhvr>\n'
+                "                                </p:animRot>\n"
+            )
+        to_color = animation.get("toColor")
+        if to_color:
+            clr_id = nid
+            nid += 1
+            children.append(
+                '                                <p:animClr clrSpc="rgb">\n'
+                f'                                  <p:cBhvr><p:cTn id="{clr_id}" dur="{duration}"{repeat}{ease}{autorev} fill="hold"/><p:tgtEl>{sp_tgt}</p:tgtEl><p:attrNameLst><p:attrName>fillcolor</p:attrName></p:attrNameLst></p:cBhvr>\n'
+                f'                                  <p:to><a:srgbClr val="{_hex(to_color)}"/></p:to>\n'
+                "                                </p:animClr>\n"
+            )
+        if not children:
+            # Defensive fallback: a declared but empty compose still gives a
+            # visible fade instead of an empty, invalid timing container.
+            fade_id = nid
+            nid += 1
+            children.append(
+                '                                <p:animEffect transition="in" filter="fade">\n'
+                f'                                  <p:cBhvr><p:cTn id="{fade_id}" dur="{duration}"{ease} fill="hold"/><p:tgtEl>{sp_tgt}</p:tgtEl></p:cBhvr>\n'
+                "                                </p:animEffect>\n"
+            )
+        preset_class = "entr" if opacity == "in" else "exit" if opacity == "out" else "emph"
+        xml = (
+            "                          <p:par>\n"
+            f'                            <p:cTn id="{ctn_id}" presetID="10" presetClass="{preset_class}" presetSubtype="0" fill="hold" grpId="{grp}" nodeType="{node_type}">\n'
+            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
+            "                              <p:childTnLst>\n"
+            + "".join(children)
+            + "                              </p:childTnLst>\n"
+            "                            </p:cTn>\n"
+            "                          </p:par>"
+        )
+        return xml, nid
     # Entrance appear: instant visibility set, no filter reveal.
     if effect in _MOTION_ENTRANCES:
         dx, dy, scale = _MOTION_ENTRANCES[effect]
@@ -1911,7 +2019,7 @@ def _is_entrance_effect(effect: str) -> bool:
 
 
 def _is_supported_effect(effect: str) -> bool:
-    if effect in {"appear", "motionPath", "recolor"} or effect in _EMPHASIS_EFFECTS or effect in _MOTION_ENTRANCES:
+    if effect in {"appear", "motionPath", "recolor", "compose"} or effect in _EMPHASIS_EFFECTS or effect in _MOTION_ENTRANCES:
         return True
     base = effect[len("exit-"):] if effect.startswith("exit-") else effect
     return base in _ANIM_EFFECT_FILTERS
@@ -1924,6 +2032,8 @@ def _animation_effect(animation: dict[str, Any]) -> str:
         return "fade"
     if lowered in {"appear", "entrance-appear"}:
         return "appear"
+    if lowered in {"compose", "combo", "composite", "choreography"}:
+        return "compose"
     if lowered in {"motion", "motion-path", "motionpath", "path"}:
         return "motionPath"
     if lowered in {"spin", "rotate", "emphasis-spin"}:
@@ -2064,6 +2174,29 @@ def _ms(value: Any, default: int) -> int:
         return max(0, int(round(float(text))))
     except ValueError:
         return default
+
+
+def _float_or_none(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _compose_opacity(animation: dict[str, Any]) -> str:
+    value = str(animation.get("opacity") or animation.get("fade") or "").strip().lower()
+    value = value.replace("-", "").replace("_", "").replace(" ", "")
+    if value in {"in", "fadein", "entrance", "appear", "on"}:
+        return "in"
+    if value in {"out", "fadeout", "exit", "disappear", "off"}:
+        return "out"
+    return ""
+
+
+def _compose_is_entrance(animation: dict[str, Any]) -> bool:
+    return _compose_opacity(animation) == "in"
 
 
 def _emu(value: Any, scale: float) -> int:

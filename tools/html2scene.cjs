@@ -557,6 +557,47 @@ function extractSlide(opts) {
       pptMorphRaw: el.getAttribute("data-ppt-morph") || null,
     };
   };
+  const animationTargetKeyFor = (el) => {
+    const tag = el.tagName.toLowerCase();
+    const base = stableKey(el, tag);
+    return el.classList.contains("ppt-textbox") ? `${base}/text-flow` : base;
+  };
+  const parseSeqDecl = (value) => {
+    const out = {};
+    for (const part of String(value || "").split(";")) {
+      const idx = part.indexOf(":");
+      if (idx < 0) {
+        const flag = part.trim();
+        if (flag) out[flag] = true;
+        continue;
+      }
+      const key = part.slice(0, idx).trim();
+      if (key) out[key] = part.slice(idx + 1).trim();
+    }
+    return out;
+  };
+  const sequencesFor = (root) => {
+    const sequences = [];
+    for (const el of root.querySelectorAll("[data-ppt-sequence]")) {
+      const raw = el.getAttribute("data-ppt-sequence") || "";
+      const d = parseSeqDecl(raw);
+      let candidates = [];
+      if (d.selector) {
+        try { candidates = [...el.querySelectorAll(d.selector)]; }
+        catch { candidates = []; }
+      } else {
+        candidates = [...el.querySelectorAll(COMPONENT_SEL)];
+      }
+      const targets = [];
+      for (const candidate of candidates) {
+        if (!candidate.matches(COMPONENT_SEL)) continue;
+        const key = animationTargetKeyFor(candidate);
+        if (key && !targets.includes(key)) targets.push(key);
+      }
+      if (targets.length) sequences.push({ raw, targets });
+    }
+    return sequences;
+  };
   const textRecord = (el, style, common, bg, border, hasShadow) => {
     const runs = blockTextRunsFor(el);
     if (!runs.length) return null;
@@ -749,6 +790,7 @@ function extractSlide(opts) {
     stage: { width: stageRect.width, height: stageRect.height },
     background: cssBackground(stageStyle),
     pptTransitionRaw: active.getAttribute("data-ppt-transition") || null,
+    sequences: sequencesFor(active),
     elements,
     svgElements,
     images,
@@ -1082,7 +1124,10 @@ function pptTransitionFor(slide, isFirst) {
 function slideAnimationsFor(slide, elements) {
   // Animations come only from agent-declared data-ppt-* intent. The compiler
   // never choreographs a specific deck for the agent.
-  return dedupeAnimations(declaredPptAnimations(slide, elements));
+  return dedupeAnimations([
+    ...declaredPptAnimations(slide, elements),
+    ...declaredPptSequences(slide, elements),
+  ]);
 }
 
 // Parse a "k:v; k:v" declarative string into a plain object.
@@ -1132,6 +1177,21 @@ function pptAnimToIntent(d) {
   if (d.dist != null) base.dist = Number(d.dist);
   if (d.repeat != null) base.repeat = String(d.repeat).trim();
   if (d.alt !== undefined || d.autoRev !== undefined) base.autoRev = true;
+  if (d.compose !== undefined || d.combo !== undefined || d.effect === "compose" || d.effect === "combo" || d.entrance === "compose") {
+    const out = { ...base, effect: "compose" };
+    const opacity = String(d.opacity || d.fade || "").trim().toLowerCase();
+    if (opacity) out.opacity = opacity;
+    for (const [key, outKey] of [
+      ["x", "x"], ["y", "y"], ["dx", "x"], ["dy", "y"],
+      ["scaleFrom", "scaleFrom"], ["scaleTo", "scaleTo"],
+      ["rotateFrom", "rotateFrom"], ["rotateTo", "rotateTo"],
+    ]) {
+      if (d[key] != null) out[outKey] = Number(d[key]);
+    }
+    if (d.motion || d.path) out.pptPath = String(d.path || d.motion);
+    if (d.recolor || d.toColor) out.toColor = String(d.recolor || d.toColor);
+    return out;
+  }
   if (d.entrance) return { ...base, effect: String(d.entrance) };
   if (d.appear !== undefined) return { ...base, effect: "appear" };
   if (d.exit) return { ...base, effect: `exit-${String(d.exit)}` };
@@ -1181,6 +1241,62 @@ function declaredPptAnimations(slide, elements) {
         ...(d.dur != null ? { durationMs: Number(d.dur) } : {}),
       });
     }
+  }
+  return rows.filter((row) => row.target && animationTargetExists(elements, row.target));
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function numberOr(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function sequenceBaseIntent(d) {
+  const hasEffect = d.compose !== undefined || d.combo !== undefined || d.effect || d.entrance ||
+    d.exit || d.emphasis || d.motion || d.path || d.appear !== undefined || d.recolor;
+  const decl = { ...d };
+  if (!hasEffect || d.mode === "stagger" || d.stagger !== undefined) {
+    decl.compose = true;
+    decl.opacity = firstDefined(d.opacity, "in");
+    decl.x = firstDefined(d.x, d.dx, -42);
+    decl.y = firstDefined(d.y, d.dy, 16);
+    decl.scaleFrom = firstDefined(d.scaleFrom, 0.96);
+    decl.scaleTo = firstDefined(d.scaleTo, 1);
+  }
+  delete decl.selector;
+  delete decl.targets;
+  delete decl.gap;
+  delete decl.overlap;
+  delete decl.stagger;
+  delete decl.mode;
+  return pptAnimToIntent(decl);
+}
+
+function declaredPptSequences(slide, elements) {
+  const rows = [];
+  for (const sequence of slide.sequences || []) {
+    const targets = Array.isArray(sequence.targets) ? sequence.targets : [];
+    if (!targets.length) continue;
+    const d = parsePptDecl(sequence.raw || "");
+    const base = sequenceBaseIntent(d);
+    if (!base) continue;
+    const duration = numberOr(base.durationMs, numberOr(d.dur, 520));
+    const overlap = numberOr(d.overlap, 0);
+    const gap = numberOr(firstDefined(d.gap, d.stagger), Math.max(0, duration - overlap));
+    const baseDelay = numberOr(base.delayMs, numberOr(d.delay, 0));
+    const firstTrigger = normalizePptTrigger(firstDefined(d.trigger, "afterPrev"));
+    targets.forEach((target, index) => {
+      const delayMs = baseDelay + Math.max(0, index * gap);
+      rows.push({
+        ...base,
+        target,
+        trigger: index === 0 ? firstTrigger : "withPrevious",
+        delayMs,
+      });
+    });
   }
   return rows.filter((row) => row.target && animationTargetExists(elements, row.target));
 }

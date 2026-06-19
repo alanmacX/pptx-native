@@ -131,8 +131,12 @@ Priority order (highest ROI first):
 2. **Per-paragraph text build `bldP`** — ✅ via `effect:"build"` + `buildEffect`.
 3. **Exit fade family** — ✅ via `exit-<effect>` (same filters, `transition="out"`).
 4. **Emphasis**: spin (`animRot`), grow/shrink (`animScale`), pulse. ✅
-5. **Auto morphKey inference** from HTML step diffs. ✅ via `autoMorph` flag.
-6. Filled freeform ✅, connector arrowheads ✅, glow ✅. Charts / SmartArt /
+5. **Composite web-style motion**: one declared effect emits concurrent
+   `set`/`animEffect`/`animMotion`/`animScale`/`animRot`/`animClr` children. ✅
+6. **Container choreography**: `data-ppt-sequence` expands child objects into
+   staggered/overlapped native timing. ✅
+7. **Auto morphKey inference** from HTML step diffs. ✅ via `autoMorph` flag.
+8. Filled freeform ✅, connector arrowheads ✅, glow ✅. Charts / SmartArt /
    media / bent connectors / soft-edge still ❌.
 </content>
 </invoke>

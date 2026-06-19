@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { margin:0; background:#111; }
+    @keyframes premiumSettle {
+      from {
+        opacity: 0;
+        transform: translate(-120px, 42px) scale(.82) rotate(-7deg);
+        background-color: #FF7A59;
+      }
+      to {
+        opacity: 1;
+        transform: translate(0, 0) scale(1) rotate(0deg);
+        background-color: #0E766D;
+      }
+    }
+    @keyframes shimmerPath {
+      0% { transform: translate(0, 0); }
+      35% { transform: translate(54px, -18px); }
+      70% { transform: translate(118px, 10px); }
+      100% { transform: translate(168px, 0); }
+    }
+    #hero-card { animation: premiumSettle 780ms cubic-bezier(.2,.8,.2,1) both; }
+    #shimmer { animation: shimmerPath 900ms ease-in-out 260ms both; }
+  </style>
+</head>
+<body>
+  <section class="ppt-slide" id="s1" style="width:1280px;height:720px;background:linear-gradient(135deg,#10201F,#F7F1E8);">
+    <div class="ppt-shape" id="hero-card" data-shape="roundRect"
+      style="position:absolute;left:170px;top:178px;width:520px;height:318px;background:#0E766D;border-radius:34px;box-shadow:0 28px 70px rgba(10,30,28,.34);"></div>
+    <div class="ppt-shape" id="shimmer" data-shape="ellipse"
+      style="position:absolute;left:222px;top:234px;width:72px;height:72px;background:#F4C95D;border-radius:50%;opacity:.88;"></div>
+    <div class="ppt-textbox" id="headline"
+      data-ppt-anim="compose; opacity:in; x:-72; y:18; scaleFrom:.94; scaleTo:1; rotateFrom:-2; rotateTo:0; dur:620; delay:120; ease:out"
+      style="position:absolute;left:220px;top:288px;width:440px;height:96px;color:#FFFFFF;font-family:Aptos Display,Arial,sans-serif;font-size:54px;font-weight:800;line-height:1.05;">
+      Composite native motion
+    </div>
+    <div class="ppt-textbox" id="subhead"
+      data-ppt-anim="entrance:rise; dist:22; trigger:afterPrev; dur:520; delay:360; ease:out"
+      style="position:absolute;left:224px;top:398px;width:430px;height:72px;color:#DDF4EF;font-family:Aptos,Arial,sans-serif;font-size:24px;line-height:1.25;">
+      One CSS keyframe becomes editable PowerPoint timing primitives.
+    </div>
+  </section>
+</body>
+</html>

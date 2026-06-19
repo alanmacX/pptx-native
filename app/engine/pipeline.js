@@ -36,6 +36,19 @@ function run(cmd, args, opts = {}) {
   return r;
 }
 
+function ms() {
+  return Number(process.hrtime.bigint() / 1000000n);
+}
+
+function timed(timings, name, fn) {
+  const start = ms();
+  try {
+    return fn();
+  } finally {
+    if (timings) timings[name] = (timings[name] || 0) + (ms() - start);
+  }
+}
+
 function tmpdir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "ppt-"));
 }
@@ -75,12 +88,12 @@ function lintHtml(html) {
   return report;
 }
 
-function normalizeAndLintHtml(html) {
-  const normalized = normalizeHtml(html);
+function normalizeAndLintHtml(html, timings = null) {
+  const normalized = timed(timings, "normalizeMs", () => normalizeHtml(html));
   const dir = tmpdir();
   const htmlPath = path.join(dir, "lint.html");
   fs.writeFileSync(htmlPath, normalized.html);
-  const lintReport = lint(htmlPath);
+  const lintReport = timed(timings, "lintMs", () => lint(htmlPath));
   lintReport.normalization = normalized.report;
   return { html: normalized.html, normalization: normalized.report, lint: lintReport };
 }
@@ -100,26 +113,44 @@ function extract(htmlPath, scenePath, { steps = "0", width = 1280, height = 720 
  * Compile scene -> .pptx. ISOLATED Python dependency (the only one).
  * Replace this function with a TS implementation to drop Python entirely.
  */
-function compilePptx(scenePath, outPptx) {
+function compilePptx(scenePath, outPptx, timings = null) {
   const deckDir = path.join(path.dirname(scenePath), "deck");
-  let r = run(PYTHON, ["-m", "pptx_native", "create", scenePath, "--out", deckDir, "--force"]);
+  let r = timed(timings, "createMs", () =>
+    run(PYTHON, ["-m", "pptx_native", "create", scenePath, "--out", deckDir, "--force"]));
   if (r.status !== 0) throw new Error("compile failed: " + r.stderr);
   const createReport = JSON.parse(r.stdout);
-  r = run(PYTHON, ["-m", "pptx_native", "validate", deckDir]);
+  r = timed(timings, "validateMs", () => run(PYTHON, ["-m", "pptx_native", "validate", deckDir]));
   const validate = JSON.parse(r.stdout);
-  run(PYTHON, ["-m", "pptx_native", "pack", deckDir, "--out", outPptx]);
+  timed(timings, "packMs", () => run(PYTHON, ["-m", "pptx_native", "pack", deckDir, "--out", outPptx]));
   return { losses: createReport.losses || [], validate };
+}
+
+function sceneStats(scene) {
+  const slides = scene.slides || [];
+  const effects = slides.reduce((n, slide) => n + (slide.animations?.effects?.length || 0), 0);
+  return {
+    slides: slides.length,
+    elements: slides.reduce((n, slide) => n + (slide.elements?.length || 0), 0),
+    animationEffects: effects,
+    slidesWithTiming: slides.filter((slide) => slide.animations?.effects?.length).length,
+    transitions: slides.filter((slide) => slide.transition).length,
+    morphTransitions: slides.filter((slide) => String(slide.transition?.type || slide.transition || "").toLowerCase() === "morph").length,
+    guards: scene.guards?.length || 0,
+  };
 }
 
 /** Full pipeline. Returns a structured report for the UI / LLM auto-fix loop. */
 function buildFromHtml(html, outPptx, opts = {}) {
+  const timings = {};
+  const totalStart = ms();
   const dir = tmpdir();
   const htmlPath = path.join(dir, "slide.html");
-  const checked = normalizeAndLintHtml(html);
+  const checked = normalizeAndLintHtml(html, timings);
   fs.writeFileSync(htmlPath, checked.html);
   const scenePath = path.join(dir, "scene.json");
-  const scene = extract(htmlPath, scenePath, opts);
-  const compile = compilePptx(scenePath, outPptx);
+  const scene = timed(timings, "extractMs", () => extract(htmlPath, scenePath, opts));
+  const compile = compilePptx(scenePath, outPptx, timings);
+  timings.totalMs = ms() - totalStart;
   return {
     ok: checked.lint.ok && compile.validate.ok,
     out: outPptx,
@@ -129,6 +160,8 @@ function buildFromHtml(html, outPptx, opts = {}) {
     guards: scene.guards || [],
     validate: { ok: compile.validate.ok, errors: compile.validate.errors },
     slides: scene.slides.length,
+    stats: sceneStats(scene),
+    timings,
   };
 }
 
