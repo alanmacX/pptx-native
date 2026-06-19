@@ -89,6 +89,8 @@ data-ppt-anim="entrance:fade; trigger:afterPrev; dur:450; delay:0"
   `animScale`, `animRot`, and `animClr` children.
 - `trigger:` ∈ onClick / withPrev / afterPrev / auto. **Banned triggers**: scroll,
   hover, infinite loop (PowerPoint cannot store them).
+- Media commands on `.ppt-media`: `data-ppt-anim="media:play"`,
+  `media:pause`, or `media:stop` compile to native `p:cmd` timing.
 
 ### `data-ppt-build` (per-paragraph text reveal)
 ```

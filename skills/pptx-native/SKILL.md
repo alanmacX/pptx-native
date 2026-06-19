@@ -73,6 +73,7 @@ For repo-local native scene JSON details, use `docs/native-authoring.md`.
 ```bash
 node tools/ppt_surface_audit.cjs --check picture blur
 node tools/ppt_asset_search.cjs --query "solar panel closeup" --type image --download --out outputs/assets/solar
+node tools/ppt_asset_import.cjs --src ./clip.mp4 --type video --out outputs/assets/clip
 node tools/ppt_surface_smoke.cjs --out outputs/native-surface-smoke
 skills/pptx-native/scripts/build.sh examples/animation-compose-smoke.html outputs/smoke.pptx
 python3 -m pptx_native capabilities > capabilities.json

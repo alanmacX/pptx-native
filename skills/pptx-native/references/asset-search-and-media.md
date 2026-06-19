@@ -13,6 +13,11 @@ not impose layout, palette, typography, or repeated slide structure.
    node tools/ppt_asset_search.cjs --query "query terms" --type image --download --out outputs/assets/<slug>
    node tools/ppt_asset_search.cjs --query "query terms" --type video --download --out outputs/assets/<slug>
    ```
+   For a user-provided URL or local file, import it directly:
+   ```bash
+   node tools/ppt_asset_import.cjs --src https://example.com/photo.jpg --type image --out outputs/assets/<slug>
+   node tools/ppt_asset_import.cjs --src ./clip.mp4 --type video --out outputs/assets/<slug>
+   ```
 3. Read `outputs/assets/<slug>/assets.json` and choose assets that fit the
    content. Prefer files with clear author/license/page URL metadata.
 4. Embed local/data assets in the PPTX. Do not hotlink remote URLs in final decks.
@@ -51,6 +56,14 @@ Audio:
 `data-ppt-anim`, `data-ppt-sequence`, `data-ppt-glow`, `data-ppt-blur`, and
 `data-ppt-reflection` may target `.ppt-picture` and `.ppt-media`.
 
+Media playback commands:
+
+```html
+<video class="ppt-media" src="file:///absolute/path/to/clip.mp4"
+  data-ppt-anim="compose; opacity:in; x:-42; dur:520 | media:play; trigger:withPrev; delay:700"
+  style="position:absolute;left:120px;top:90px;width:720px;height:405px"></video>
+```
+
 ## Scene JSON Usage
 
 ```json
@@ -71,6 +84,8 @@ Supported carriers:
 - `type:"image"`: `data:image/*`, `file://`, or local path.
 - `type:"media"`: `mediaType:"video|audio"`, `data:video/*`, `data:audio/*`,
   `file://`, or local path. Prefer MP4 for video and MP3/WAV/M4A for audio.
+- Media timing: use `effect:"mediaPlay"`, `effect:"mediaPause"`, or
+  `effect:"mediaStop"` against the media element's target/name.
 
 Remote HTTP(S) URLs are search/import inputs, not final authoring inputs.
 Download them first so the PPTX is reproducible and self-contained.

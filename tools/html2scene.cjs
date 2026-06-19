@@ -1246,6 +1246,16 @@ function pptAnimToIntent(d) {
   if (d.dist != null) base.dist = Number(d.dist);
   if (d.repeat != null) base.repeat = String(d.repeat).trim();
   if (d.alt !== undefined || d.autoRev !== undefined) base.autoRev = true;
+  const mediaCommand = mediaCommandFor(d);
+  if (mediaCommand) {
+    const out = { ...base, effect: `media${mediaCommand[0].toUpperCase()}${mediaCommand.slice(1)}` };
+    if (d.cmd || d.command) out.cmd = String(d.cmd || d.command);
+    if (d.startSeconds != null || d.startSec != null || d.fromSeconds != null) {
+      out.startSeconds = Number(d.startSeconds ?? d.startSec ?? d.fromSeconds);
+    }
+    if (d.cmdDurationMs != null) out.cmdDurationMs = Number(d.cmdDurationMs);
+    return out;
+  }
   if (d.compose !== undefined || d.combo !== undefined || d.effect === "compose" || d.effect === "combo" || d.entrance === "compose") {
     const out = { ...base, effect: "compose" };
     const opacity = String(d.opacity || d.fade || "").trim().toLowerCase();
@@ -1277,6 +1287,15 @@ function pptAnimToIntent(d) {
   if (d.recolor) {
     return { ...base, effect: "recolor", toColor: String(d.recolor) };
   }
+  return null;
+}
+
+function mediaCommandFor(d) {
+  const raw = String(d.media || d.mediaCommand || d.effect || d.type || d.cmd || d.command || "").trim().toLowerCase();
+  const compact = raw.replace(/[-_\s]/g, "");
+  if (compact === "mediaplay" || compact === "playmedia" || compact === "play" || d.play !== undefined) return "play";
+  if (compact === "mediapause" || compact === "pausemedia" || compact === "pause" || d.pause !== undefined) return "pause";
+  if (compact === "mediastop" || compact === "stopmedia" || compact === "stop" || d.stop !== undefined) return "stop";
   return null;
 }
 

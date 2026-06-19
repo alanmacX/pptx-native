@@ -18,7 +18,7 @@ design into supported sibling carriers instead of hoping PowerPoint will infer i
 | Freeform / custom mark | `p:sp` + `a:custGeom` | SVG path/polygon / scene `type:"freeform"` | sampled points, fill, stroke, shadow, glow, blur, reflection | true bezier authoring, edit-point semantics |
 | Connector / arrow line | `p:cxnSp` | `.ppt-line` / SVG line/polyline / scene `type:"line"` | endpoints, stroke, dash, arrow end, animation target | bent/curved connector, line effects |
 | Photo / raster asset | `p:pic` + `a:blip` | `img` / `.ppt-picture` / scene `type:"image"` | data/local image, geometry, rotation, shadow, glow, blur, reflection, animation target | crop, transparency, duotone, artistic effects |
-| Video / audio asset | `p:pic` + `a:videoFile`/`a:audioFile` + `p14:media` | `video` / `audio` / `.ppt-media` / scene `type:"media"` | local/data media, poster, geometry, rotation, shadow, glow, blur, reflection, animation target | play/pause/stop commands, trim, poster extraction |
+| Video / audio asset | `p:pic` + `a:videoFile`/`a:audioFile` + `p14:media` | `video` / `audio` / `.ppt-media` / scene `type:"media"` | local/data media, poster, geometry, rotation, shadow, glow, blur, reflection, animation target, play/pause/stop | trim, poster extraction, captions |
 | Table | `p:graphicFrame` + `a:tbl` | scene JSON only | editable rows/cells, cell fill/color, borders | merged cells, HTML extraction, table effects |
 | Chart | `p:graphicFrame` + `c:chart` + xlsx | scene JSON only | editable workbook, bar/column/barh/line/pie, series color | combo/scatter/area, detailed axes, HTML extraction |
 | Group | `p:grpSp` | declared gap | none yet | group writer, group effects, group animation |
@@ -53,7 +53,7 @@ design into supported sibling carriers instead of hoping PowerPoint will infer i
 | `p:animRot` | spin, compose rotation | rotation | Works in compose with motion/scale. |
 | `p:animClr` | recolor, compose recolor | fill-color change | Shape fill only. |
 | `p:bldP` | `data-ppt-build` | paragraph reveal | Textbox only today. |
-| `p:cmd` / media | gap | play/pause/stop | Media embeds compile; explicit playback commands are next. |
+| `p:cmd` / media | `media:play` / `mediaPause` / `mediaStop` | play/pause/stop | Compiles as native media command timing. |
 
 ## Selection Rules
 

@@ -68,6 +68,10 @@ Not artificially limited.
 
 `{ "type":"media", "mediaType":"video|audio", "src":"data:video/mp4;base64,...|file:///...|/local/path", "poster":"file:///poster.jpg?", "x","y","w","h" }`
 
+Target the media object with `{ "effect":"mediaPlay" }`,
+`{ "effect":"mediaPause" }`, or `{ "effect":"mediaStop" }` in slide
+`animations.effects`.
+
 ### table  (`components.table`, compiles)
 ```json
 { "type": "table", "x": 120, "y": 120, "w": 1040, "h": 360,

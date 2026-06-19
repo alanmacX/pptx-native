@@ -604,15 +604,15 @@
           "emphasis",
           "motionPath",
           "compose",
-          "sequenceTarget"
+          "sequenceTarget",
+          "mediaCommand"
         ],
         "gaps": [
-          "playbackCommands",
           "trim",
           "posterFrameExtraction",
           "captions"
         ],
-        "note": "Use local/data media assets. Playback control p:cmd is still a gap; visual entrance/exit/choreography works on the media poster picture."
+        "note": "Use local/data media assets. Visual choreography works on the media poster picture; play/pause/stop compile to p:cmd media commands."
       },
       "table": {
         "status": "compiles",
@@ -817,6 +817,21 @@
           "group"
         ]
       },
+      "mediaCommand": {
+        "compilesOn": [
+          "media"
+        ],
+        "gapsOn": [
+          "textbox",
+          "shape",
+          "freeform",
+          "connector",
+          "picture",
+          "table",
+          "chart",
+          "group"
+        ]
+      },
       "textBuild": {
         "compilesOn": [
           "textbox"
@@ -929,6 +944,23 @@
           "rotateFrom",
           "rotateTo"
         ]
+      },
+      "mediaCommand": {
+        "status": "compiles",
+        "intent": "Play, pause, or stop embedded video/audio using native p:cmd timing.",
+        "effects": [
+          "mediaPlay",
+          "mediaPause",
+          "mediaStop"
+        ],
+        "dsl": "data-ppt-anim=\"media:play; trigger:onClick\"",
+        "params": [
+          "target",
+          "trigger",
+          "delay",
+          "startSeconds"
+        ],
+        "carrier": "media"
       },
       "textBuild": {
         "effect": "build",

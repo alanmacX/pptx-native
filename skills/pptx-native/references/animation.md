@@ -107,6 +107,8 @@ The author compiler now emits native `p:timing` for:
   richer HTML keyframes to editable PowerPoint: a single CSS entrance can become
   `p:set` + `p:animEffect` + `p:animMotion` + `p:animScale` + `p:animRot` +
   `p:animClr` children under one timing node.
+- media commands: `mediaPlay`, `mediaPause`, and `mediaStop` compile to native
+  `p:cmd` timing on embedded video/audio carriers.
 - `data-ppt-sequence` for style-neutral choreography: one container declaration
   expands child native objects into a staggered/overlapped set of effects with
   deterministic delays.
@@ -171,6 +173,7 @@ the same declarative DSL before lint/extract:
 |---|---|---|
 | `opacity:0 -> 1` | `entrance:fade` | `p:animEffect filter="fade"` |
 | `opacity:1 -> 0` | `exit:fade` | exit `p:animEffect` |
+| media playback | `media:play` or scene `effect:"mediaPlay"` | `p:cmd type="call" cmd="playFrom(0.0)"` |
 | `transform:rotate(a) -> rotate(b)` | `emphasis:spin; byDeg:b-a` | `p:animRot` |
 | `transform:scale(a) -> scale(b)` | `emphasis:grow/shrink; scale:b*100` | `p:animScale` |
 | `scale(1) -> scale(n) -> scale(1)` | `emphasis:pulse; scale:n*100` | `p:animScale autoRev` |

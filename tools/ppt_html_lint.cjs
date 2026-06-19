@@ -266,9 +266,12 @@ async function main() {
           const d = parseDecl(segment);
           const isCompose = d.compose !== undefined || d.combo !== undefined ||
             d.effect === "compose" || d.effect === "combo" || d.entrance === "compose";
+          const mediaCommand = d.media || d.mediaCommand ||
+            (["mediaPlay", "mediaPause", "mediaStop", "play", "pause", "stop"].includes(d.effect) ? d.effect : null) ||
+            (d.play !== undefined ? "play" : d.pause !== undefined ? "pause" : d.stop !== undefined ? "stop" : null);
           const eff = isCompose ? "compose" : d.entrance || d.emphasis || (d.exit ? "exit:" + d.exit : null) ||
             (d.appear !== undefined ? "appear" : null) || (d.motion || d.path ? "motion" : null) ||
-            (d.recolor ? "recolor" : null);
+            (d.recolor ? "recolor" : null) || (mediaCommand ? "media" : null);
           if (!eff)
             add(el, "error", "DSL_NO_EFFECT", "data-ppt-anim has no recognized effect key.",
               "Add one of: compose, entrance:/exit:/emphasis:/motion:/appear/recolor.");
@@ -281,6 +284,12 @@ async function main() {
           if (d.emphasis && !vocab.emphasis.includes(d.emphasis))
             add(el, "error", "DSL_BAD_EFFECT", `emphasis:${d.emphasis} is not supported.`,
               `Use one of: ${vocab.emphasis.join(", ")}.`);
+          if (mediaCommand) {
+            const normalized = String(mediaCommand).toLowerCase().replace(/[-_\s]/g, "").replace(/^media/, "");
+            if (!["play", "pause", "stop"].includes(normalized))
+              add(el, "error", "DSL_BAD_EFFECT", `media:${mediaCommand} is not supported.`,
+                "Use media:play, media:pause, or media:stop.");
+          }
           const trig = d.trigger;
           if (trig && !vocab.triggers.map((t) => t.toLowerCase()).includes(String(trig).toLowerCase()))
             add(el, "error", "DSL_BAD_TRIGGER", `trigger:${trig} is not a PPT trigger.`,

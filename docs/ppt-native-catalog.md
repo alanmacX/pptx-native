@@ -71,7 +71,7 @@ nodes inside `p:timing`.
 - `p:animMotion` — path. ✅
 - `p:animRot` — rotation (spin). ✅
 - `p:animScale` — scale (grow/shrink, pulse). ✅
-- `p:cmd` — media play/pause/stop. ❌ (embed works; commands are next)
+- `p:cmd` — media play/pause/stop. 🟢 mediaPlay/mediaPause/mediaStop
 
 **Orchestration**
 - `mainSeq` → `seq` → nested `par`/`cTn`.

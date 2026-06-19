@@ -2156,6 +2156,35 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
         )
         return xml, next_id
 
+    if effect in _MEDIA_COMMAND_EFFECTS:
+        ctn_id = node_id
+        beh_id = node_id + 1
+        next_id = node_id + 2
+        cmd = _media_command(animation, effect)
+        cmd_duration = _ms(
+            animation.get(
+                "commandDurationMs",
+                animation.get("cmdDurationMs", animation.get("durationMs", animation.get("duration", 1))),
+            ),
+            1,
+        )
+        xml = (
+            "                          <p:par>\n"
+            f'                            <p:cTn id="{ctn_id}" presetID="1" presetClass="mediacall" presetSubtype="0" fill="hold" grpId="{grp}" nodeType="{node_type}">\n'
+            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
+            "                              <p:childTnLst>\n"
+            f'                                <p:cmd type="call" cmd="{_e(cmd)}">\n'
+            "                                  <p:cBhvr>\n"
+            f'                                    <p:cTn id="{beh_id}" dur="{cmd_duration}" fill="hold"/>\n'
+            f'                                    <p:tgtEl>{sp_tgt}</p:tgtEl>\n'
+            "                                  </p:cBhvr>\n"
+            "                                </p:cmd>\n"
+            "                              </p:childTnLst>\n"
+            "                            </p:cTn>\n"
+            "                          </p:par>"
+        )
+        return xml, next_id
+
     path = str(animation.get("pptPath") or animation.get("path") or "").strip()
     if not path:
         raise ValueError(f"motionPath animation requires pptPath/path: {animation}")
@@ -2177,6 +2206,26 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
         "                          </p:par>"
     )
     return xml, next_id
+
+
+def _media_command(animation: dict[str, Any], effect: str) -> str:
+    explicit = animation.get("cmd") or animation.get("command") or animation.get("mediaCommand")
+    if explicit:
+        text = str(explicit).strip()
+        lowered = text.lower().replace("_", "").replace("-", "")
+        if lowered in {"play", "playfrom", "playfrom0"}:
+            return "playFrom(0.0)"
+        if lowered in {"pause", "togglepause"}:
+            return "togglePause"
+        if lowered == "stop":
+            return "stop"
+        return text
+    if effect == "mediaPlay":
+        start = _float_or_none(animation.get("startSeconds", animation.get("startSec", animation.get("fromSeconds"))))
+        if start is None:
+            return _MEDIA_COMMAND_EFFECTS[effect]
+        return f"playFrom({max(0.0, start):.1f})"
+    return _MEDIA_COMMAND_EFFECTS[effect]
 
 
 def _animation_list(value: Any) -> list[dict[str, Any]]:
@@ -2213,6 +2262,11 @@ def _build_reveal_effect(animation: dict[str, Any]) -> str:
 
 
 _EMPHASIS_EFFECTS = {"spin", "grow", "shrink", "pulse"}
+_MEDIA_COMMAND_EFFECTS: dict[str, str] = {
+    "mediaPlay": "playFrom(0.0)",
+    "mediaPause": "togglePause",
+    "mediaStop": "stop",
+}
 
 
 def _is_entrance_effect(effect: str) -> bool:
@@ -2220,6 +2274,8 @@ def _is_entrance_effect(effect: str) -> bool:
 
 
 def _is_supported_effect(effect: str) -> bool:
+    if effect in _MEDIA_COMMAND_EFFECTS:
+        return True
     if effect in {"appear", "motionPath", "recolor", "compose"} or effect in _EMPHASIS_EFFECTS or effect in _MOTION_ENTRANCES:
         return True
     base = effect[len("exit-"):] if effect.startswith("exit-") else effect
@@ -2235,6 +2291,12 @@ def _animation_effect(animation: dict[str, Any]) -> str:
         return "appear"
     if lowered in {"compose", "combo", "composite", "choreography"}:
         return "compose"
+    if lowered in {"media-play", "mediaplay", "play-media", "playmedia", "play"}:
+        return "mediaPlay"
+    if lowered in {"media-pause", "mediapause", "pause-media", "pausemedia", "pause"}:
+        return "mediaPause"
+    if lowered in {"media-stop", "mediastop", "stop-media", "stopmedia", "stop"}:
+        return "mediaStop"
     if lowered in {"motion", "motion-path", "motionpath", "path"}:
         return "motionPath"
     if lowered in {"spin", "rotate", "emphasis-spin"}:
