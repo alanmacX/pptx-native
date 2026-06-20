@@ -61,10 +61,65 @@
     const entrance = (isCompose && opacity === "in") || (!!(d.entrance || d.appear !== undefined) && !exit);
     return { el, effect, exit, entrance, opacity,
       trigger: normTrigger(d.trigger), dur: num(d.dur, 450), delay: num(d.delay, 0), ease: d.ease || "",
+      repeat: d.repeat || "", autoRev: d.alt !== undefined || d.autoRev !== undefined,
       spins: num(d.spins, 1), scale: num(d.scale, null), path: d.path || d.motion || "",
       x: num(d.x ?? d.dx, 0), y: num(d.y ?? d.dy, 0),
       scaleFrom: num(d.scaleFrom, null), scaleTo: num(d.scaleTo, null),
       rotateFrom: num(d.rotateFrom, null), rotateTo: num(d.rotateTo, null) };
+  }
+
+  function ambientMode(d) {
+    const known = ["drift", "float", "pan", "breathe", "pulse", "shimmer", "sweep", "recolor", "path", "orbit", "media", "play", "rotate"];
+    const explicit = d.mode || d.type || d.effect || d.ambient;
+    if (explicit) return String(explicit).toLowerCase().replace(/[-_\s]/g, "");
+    return known.find((key) => d[key] !== undefined) || "drift";
+  }
+
+  function buildAmbientItems(scope) {
+    const items = [];
+    const componentSel = ".ppt-textbox,.ppt-shape,.ppt-line,.ppt-picture,.ppt-media";
+    const carriers = [
+      ...(scope.matches && scope.matches("[data-ppt-ambient]") ? [scope] : []),
+      ...Array.from(scope.querySelectorAll("[data-ppt-ambient]")),
+    ];
+    for (const container of carriers) {
+      const d = parseDecl(container.getAttribute("data-ppt-ambient"));
+      let targets = [];
+      if (d.selector) {
+        try { targets = Array.from(container.querySelectorAll(d.selector)); }
+        catch (e) { targets = []; }
+      } else if (container.matches(componentSel)) {
+        targets = [container];
+      } else {
+        targets = Array.from(container.querySelectorAll(componentSel));
+      }
+      targets = targets.filter((el) => el.matches(componentSel));
+      const mode = ambientMode(d);
+      const dur = num(d.dur ?? d.duration, 8000);
+      const gap = num(d.gap ?? d.stagger, 0);
+      const baseDelay = num(d.delay, 0);
+      const base = { ...d, compose: true, trigger: d.trigger || "withPrev", dur, repeat: d.repeat || "infinite", ease: d.ease || "inout" };
+      if (mode === "breathe" || mode === "pulse") {
+        base.scaleFrom = d.scaleFrom ?? .985;
+        base.scaleTo = d.scaleTo ?? 1.015;
+        base.autoRev = d.autoRev ?? true;
+      } else if (mode === "rotate") {
+        base.emphasis = "spin";
+        delete base.compose;
+        base.spins = d.spins ?? 1;
+      } else if (mode === "path" || mode === "orbit" || d.path || d.motion) {
+        base.motion = d.path || d.motion || "M 0 0 L 0.04 -0.02 L 0.08 0";
+        delete base.compose;
+      } else {
+        base.x = d.x ?? d.dx ?? (mode === "shimmer" || mode === "sweep" ? -140 : 16);
+        base.y = d.y ?? d.dy ?? (mode === "shimmer" || mode === "sweep" ? 0 : -10);
+        base.autoRev = mode === "shimmer" || mode === "sweep" ? d.autoRev : (d.autoRev ?? true);
+      }
+      targets.forEach((el, index) => {
+        items.push(itemFromDecl(el, { ...base, delay: baseDelay + index * gap }));
+      });
+    }
+    return items;
   }
 
   function buildSequenceItems(scope) {
@@ -107,7 +162,7 @@
   function buildItems(root) {
     const scope = root || document;
     const nodes = Array.from(scope.querySelectorAll("[data-ppt-anim],[data-ppt-build]"));
-    const items = buildSequenceItems(scope);
+    const items = [...buildAmbientItems(scope), ...buildSequenceItems(scope)];
     for (const el of nodes) {
       const animRaw = el.getAttribute("data-ppt-anim");
       const buildRaw = el.getAttribute("data-ppt-build");
@@ -231,6 +286,10 @@
     const fill = it.entrance || it.opacity === "in" ? "both" : "forwards";
     const opts = { duration: Math.max(1, it.dur), delay: it.delay || 0, fill, easing: easing(it.ease) };
     if (it.effect === "pulse") opts.fill = "none";
+    const repeat = String(it.repeat || "").toLowerCase();
+    if (repeat === "infinite" || repeat === "indefinite") opts.iterations = Infinity;
+    else if (Number(repeat) > 1) opts.iterations = Number(repeat);
+    if (it.autoRev) opts.direction = "alternate";
     let animation = null;
     try { animation = it.el.animate(kf, opts); }
     catch (e) { it.el.style.opacity = it.exit ? "0" : "1"; }

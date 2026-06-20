@@ -60,6 +60,10 @@ function normalizeDom() {
   // enum through, so the normalizer must NOT clobber e.g. hexagon back to rect.
   const shapeSet = new Set(["rect", "roundRect", "ellipse", "line"]);
   const EMPHASIS = new Set(["spin", "grow", "shrink", "pulse"]);
+  const DECORATIVE_REVEALS = new Set([
+    "blinds", "box", "checkerboard", "circle", "diamond",
+    "dissolve", "plus", "randombars", "wedge", "wheel",
+  ]);
   const keyframes = collectKeyframes();
 
   function selector(el) {
@@ -69,6 +73,84 @@ function normalizeDom() {
   }
   function add(el, rule, message) {
     corrections.push({ rule, selector: selector(el), message });
+  }
+  function compactToken(value) {
+    return String(value || "").trim().toLowerCase().replace(/[-_\s]/g, "");
+  }
+  function slideRoots() {
+    return [...document.querySelectorAll(".ppt-slide,[data-ppt='slide'],section.slide,body > section")]
+      .filter((el, i, arr) => arr.indexOf(el) === i);
+  }
+  function slideHasMotion(slide) {
+    const transition = String(slide.getAttribute("data-ppt-transition") || "").trim().toLowerCase();
+    return Boolean(
+      slide.querySelector("[data-ppt-anim],[data-ppt-build],[data-ppt-sequence],[data-ppt-motif]") ||
+      (transition && transition !== "none")
+    );
+  }
+  function declaredMotionPreset(el) {
+    return el.closest("[data-ppt-motion-preset]")?.getAttribute("data-ppt-motion-preset") ||
+      document.body?.getAttribute("data-ppt-motion-preset") ||
+      document.documentElement?.getAttribute("data-ppt-motion-preset") ||
+      "";
+  }
+  function isElegantMotion(el) {
+    const preset = compactToken(declaredMotionPreset(el));
+    return !preset || preset === "elegant" || preset === "calm" || preset === "executive";
+  }
+  function allowsFlourish(el) {
+    const purpose = compactToken(el.getAttribute("data-ppt-motion-purpose") || el.getAttribute("data-motion-purpose"));
+    return /^(dial|clock|loader|spinner|rotation|orbit|wheel|gauge)$/.test(purpose);
+  }
+  function allowsAmbient(el) {
+    const purpose = compactToken(el.getAttribute("data-ppt-motion-purpose") || el.getAttribute("data-motion-purpose"));
+    const slideIntent = compactToken(slideFor(el)?.getAttribute("data-ppt-motion-intent"));
+    return el.hasAttribute("data-ppt-ambient") || /^(ambient|background|backdrop|loop|atmosphere|texture|bg)$/.test(purpose) || slideIntent === "ambient";
+  }
+  function isLineLike(el) {
+    const role = compactToken(el.getAttribute("data-ppt-role"));
+    if (["spine", "spoke", "divider", "axis", "line"].includes(role)) return true;
+    if (el.classList.contains("ppt-line")) return true;
+    const tag = el.tagName.toLowerCase();
+    if (tag === "line" || tag === "polyline") return true;
+    const b = el.getBoundingClientRect();
+    return b.width <= 6 || b.height <= 6;
+  }
+  function inferMotionIntent(slide) {
+    if (slide.querySelector("[data-ppt-ambient]") || slide.hasAttribute("data-ppt-ambient")) return "ambient";
+    const motif = slide.querySelector("[data-ppt-motif]")?.getAttribute("data-ppt-motif");
+    if (motif) return compactToken(String(motif).split(";")[0]) || "hierarchy";
+    const transition = compactToken(slide.getAttribute("data-ppt-transition"));
+    if (transition.includes("morph") || transition.includes("smooth") || transition.includes("平滑")) return "state-change";
+    if (slide.querySelector("[data-ppt-sequence]")) return "sequence";
+    const text = compactToken([
+      slide.id,
+      slide.className,
+      slide.getAttribute("aria-label"),
+      slide.textContent?.slice(0, 600),
+    ].join(" "));
+    if (/timeline|时间线|时间轴|历程|roadmap/.test(text)) return "timeline";
+    if (/comparison|compare|对比|比较|vs/.test(text)) return "comparison";
+    if (/layers|stack|层级|分层/.test(text)) return "layers";
+    if (/metric|kpi|指标|数据/.test(text)) return "metriccluster";
+    if (/hubspoke|hub|spoke|中心|辐射/.test(text)) return "hubspoke";
+    if (/gallery|photo|image|图片|照片|画廊/.test(text)) return "gallery";
+    if (/flow|process|pipeline|流程|路径|闭环/.test(text)) return "flow";
+    return "hierarchy";
+  }
+  function normalizeSlideMotionScaffold() {
+    for (const slide of slideRoots()) {
+      if (!slideHasMotion(slide)) continue;
+      if (!declaredMotionPreset(slide)) {
+        slide.setAttribute("data-ppt-motion-preset", "elegant");
+        add(slide, "motion-preset-default", "set missing data-ppt-motion-preset to elegant");
+      }
+      if (!slide.getAttribute("data-ppt-motion-intent")) {
+        const intent = inferMotionIntent(slide);
+        slide.setAttribute("data-ppt-motion-intent", intent);
+        add(slide, "motion-intent-infer", `set missing data-ppt-motion-intent to ${intent}`);
+      }
+    }
   }
   function rawStyleProp(el, prop) {
     return rawStylePropFrom(el.getAttribute("style") || "", prop);
@@ -104,6 +186,7 @@ function normalizeDom() {
   function transformInfo(value) {
     const text = String(value || "").trim();
     if (!text || text === "none") return null;
+    if (hasUnsupportedMotionTransform(text)) return null;
     const rotate = text.match(/rotate\(\s*([-+]?\d+(?:\.\d+)?)deg\s*\)/i);
     const scale = text.match(/scale\(\s*([-+]?\d+(?:\.\d+)?)(?:\s*,\s*([-+]?\d+(?:\.\d+)?))?\s*\)/i);
     const translate = text.match(/translate\(\s*([-+]?\d+(?:\.\d+)?)(?:px)?(?:\s*,\s*([-+]?\d+(?:\.\d+)?)(?:px)?)?\s*\)/i);
@@ -250,6 +333,10 @@ function normalizeDom() {
     }
     return "";
   }
+  function hasUnsupportedMotionTransform(value) {
+    return /\b(?:matrix3d|perspective|rotate[XY]|translateZ|translate3d|scaleZ|scale3d|skew[XY]?)\s*\(/i
+      .test(String(value || ""));
+  }
   // Map a CSS animation-timing-function to the engine's ease vocabulary.
   function easeFromTiming(value) {
     const t = String(firstListValue(value) || "").toLowerCase();
@@ -291,6 +378,9 @@ function normalizeDom() {
     const dur = timeMs(nthListValue(st.animationDuration, i), 500);
     const delay = timeMs(nthListValue(st.animationDelay, i), 0);
     const ease = easeFromTiming(nthListValue(st.animationTimingFunction, i));
+    if ([from, to, ...all].some((frame) => hasUnsupportedMotionTransform(frame?.transform))) {
+      return null;
+    }
     // Looping: CSS iteration-count -> repeat, direction:alternate -> autoRev.
     const iter = nthListValue(st.animationIterationCount, i).toLowerCase();
     const dir = nthListValue(st.animationDirection, i).toLowerCase();
@@ -657,17 +747,36 @@ function normalizeDom() {
     const raw = el.getAttribute("data-ppt-anim");
     if (!raw) return;
     let changed = false;
+    const elegant = isElegantMotion(el);
+    const lineLike = isLineLike(el);
     const out = animSegments(raw).map((seg) => animParts(seg).map((p) => {
         const i = p.indexOf(":");
         if (i < 0) return p;
         const k = p.slice(0, i).trim();
         const v = p.slice(i + 1).trim();
-        if ((k === "entrance" || k === "exit") && EMPHASIS.has(v)) { changed = true; return `emphasis:${v}`; }
+        const key = k.toLowerCase();
+        const val = compactToken(v);
+        if ((key === "entrance" || key === "exit") && EMPHASIS.has(val)) { changed = true; return `emphasis:${val}`; }
+        if (elegant && (key === "entrance" || key === "exit") && DECORATIVE_REVEALS.has(val)) {
+          changed = true;
+          return `${k}:${lineLike ? "wipe" : "fade"}`;
+        }
+        if (elegant && key === "emphasis" && val === "spin" && !allowsFlourish(el) && !allowsAmbient(el)) {
+          changed = true;
+          return "emphasis:pulse";
+        }
+        if (elegant && key === "repeat" && !allowsAmbient(el)) {
+          const n = Number(v);
+          if (val === "infinite" || (Number.isFinite(n) && n > 2)) {
+            changed = true;
+            return "repeat:2";
+          }
+        }
         return p;
       }).join("; "));
     if (changed) {
       el.setAttribute("data-ppt-anim", out.join(" | "));
-      add(el, "normalize-anim", "remapped entrance/exit emphasis effect to emphasis:");
+      add(el, "normalize-anim", "normalized animation DSL for PPT motion hygiene");
     }
   }
   // A Morph object must not carry entrance/exit — Morph owns its motion.
@@ -720,6 +829,7 @@ function normalizeDom() {
     }
   }
 
+  normalizeSlideMotionScaffold();
   for (const el of [...document.querySelectorAll("*")]) {
     const st = getComputedStyle(el);
     if (el.matches(nativeSelector)) {

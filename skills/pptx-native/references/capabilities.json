@@ -845,6 +845,36 @@
   },
   "animation": {
     "within": {
+      "motionPreset": {
+        "attribute": "data-ppt-motion-preset",
+        "values": [
+          "elegant",
+          "neutral",
+          "technical",
+          "expressive",
+          "none"
+        ],
+        "default": "elegant",
+        "intent": "Restraint profile for unattended animation hygiene; elegant favors compose, sequence, motifs, Morph, fade, and line/spine wipes."
+      },
+      "motionIntent": {
+        "attribute": "data-ppt-motion-intent",
+        "values": [
+          "hierarchy",
+          "flow",
+          "sequence",
+          "timeline",
+          "comparison",
+          "layers",
+          "metricCluster",
+          "hubSpoke",
+          "stateChange",
+          "gallery",
+          "mediaReveal",
+          "ambient"
+        ],
+        "intent": "Slide-level choreography goal used by normalize/lint/guards before choosing low-level animation atoms."
+      },
       "entrance": [
         "blinds",
         "box",
@@ -945,6 +975,42 @@
           "rotateTo"
         ]
       },
+      "ambient": {
+        "status": "compiles",
+        "attribute": "data-ppt-ambient",
+        "intent": "Expand background/environment declarations into native looping compose, motionPath, spin, recolor, or mediaPlay timing without hardcoding a specific visual.",
+        "modes": [
+          "drift",
+          "float",
+          "pan",
+          "breathe",
+          "pulse",
+          "shimmer",
+          "sweep",
+          "recolor",
+          "path",
+          "orbit",
+          "rotate",
+          "media",
+          "play"
+        ],
+        "params": [
+          "selector",
+          "mode",
+          "x",
+          "y",
+          "path",
+          "scaleFrom",
+          "scaleTo",
+          "recolor",
+          "dur",
+          "delay",
+          "gap",
+          "repeat",
+          "alt",
+          "ease"
+        ]
+      },
       "mediaCommand": {
         "status": "compiles",
         "intent": "Play, pause, or stop embedded video/audio using native p:cmd timing.",
@@ -1002,6 +1068,11 @@
         ],
         "explicitIdentity": "morphKey",
         "autoInference": "autoMorph",
+        "autoIdentity": [
+          "explicit stable identity (data-morph/source id/non-generated source key)",
+          "unique identical text",
+          "unique identical image source"
+        ],
         "choreography": "declared-gap"
       }
     }

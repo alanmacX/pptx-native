@@ -310,6 +310,11 @@ def build_capabilities() -> dict[str, Any]:
                     "options": morph_options,
                     "explicitIdentity": "morphKey",
                     "autoInference": "autoMorph",
+                    "autoIdentity": [
+                        "explicit stable identity (data-morph/source id/non-generated source key)",
+                        "unique identical text",
+                        "unique identical image source",
+                    ],
                     "choreography": GAP,
                 },
             },

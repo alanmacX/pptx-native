@@ -119,7 +119,8 @@ direction, speed `spd`, precise `p14:dur`, auto-advance `advTm`, sound. ✅ (fad
   opacity, text (byWord/byChar), even 3D. This is exactly "diff of the same object
   across two slides, auto-tweened" — the natural target for HTML step diffs.
 - ✅ automatic `morphKey` inference from adjacent slides via `autoMorph` flag
-  (matches by `source.key`/`name`/`id`, assigns shared `auto:<id>` names, sets the
+  (matches by explicit stable identity or unique text/image signature, assigns
+  shared `auto:<id>` names, sets the
   Morph transition on the later slide).
 
 ---

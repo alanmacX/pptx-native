@@ -177,42 +177,97 @@ def create_deck(scene: dict[str, Any], out_dir: Path, overwrite: bool = False) -
 def _morph_identity(element: dict[str, Any]) -> str | None:
     """Stable cross-slide identity of an element, for Morph matching."""
     source = element.get("source")
-    if isinstance(source, dict) and source.get("key"):
-        return str(source["key"])
-    if isinstance(source, str) and source:
+    if isinstance(source, dict):
+        if source.get("morph"):
+            return f"morph:{source['morph']}"
+        source_key = str(source.get("key") or "")
+        source_id = str(source.get("id") or "")
+        if source_key and (source_id or source_key.startswith("#")):
+            return source_key
+    elif isinstance(source, str) and source and not _looks_like_generated_dom_key(source):
         return source
-    for key in ("morphKey", "morphId", "objectKey", "name", "id"):
+    for key in ("morphKey", "morphId", "objectKey", "sourceKey", "id"):
         value = element.get(key)
         if value:
             return str(value)
     return None
 
 
+def _looks_like_generated_dom_key(value: str) -> bool:
+    return bool(re.match(r"^[a-z][a-z0-9-]*:", str(value or "").strip(), re.I))
+
+
+def _morph_signature(element: dict[str, Any]) -> str | None:
+    """Content-based identity, used to morph-match the *same* object across
+    independent slides where the structural source.key differs. High-precision
+    only: identical text, or the same image source — never fuzzy geometry."""
+    etype = element.get("type")
+    if etype == "text":
+        text = " ".join(str(element.get("text", "")).split())
+        if len(text) >= 2:
+            return f"text::{text}"
+    elif etype == "picture":
+        src = str(element.get("src", ""))
+        base = src.rsplit("/", 1)[-1].split("?", 1)[0]
+        if base:
+            return f"pic::{base}"
+    return None
+
+
+def _unique_signature_index(elements: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Map signature -> element, keeping only signatures that appear exactly once
+    on the slide (ambiguous repeats are dropped to avoid false morph pairs)."""
+    counts: dict[str, int] = {}
+    first: dict[str, dict[str, Any]] = {}
+    for element in elements:
+        sig = _morph_signature(element)
+        if not sig:
+            continue
+        counts[sig] = counts.get(sig, 0) + 1
+        first.setdefault(sig, element)
+    return {sig: el for sig, el in first.items() if counts[sig] == 1}
+
+
 def _infer_morph_keys(scene: dict[str, Any]) -> None:
     """Auto-assign shared morphKeys to objects that persist across adjacent
-    slides, so PowerPoint smooth-morphs them (e.g. HTML step diffs).
+    slides, so PowerPoint smooth-morphs them instead of hard-cutting.
 
-    Gated by scene-level ``autoMorph`` (or per-slide ``autoMorph``) so explicit
-    scenes are never altered silently.
+    Matching is high-precision: explicit stable identity (data-morph/source id
+    or a non-generated source key), then a unique content signature (identical
+    text / same image). Gated by scene-level or per-slide ``autoMorph`` so
+    explicit scenes are never altered silently.
     """
     slides = scene.get("slides", [])
     scene_flag = bool(scene.get("autoMorph"))
     for i in range(1, len(slides)):
         if not (scene_flag or slides[i].get("autoMorph")):
             continue
+        prev_elements = slides[i - 1].get("elements", [])
         prev_by_id: dict[str, dict[str, Any]] = {}
-        for element in slides[i - 1].get("elements", []):
+        for element in prev_elements:
             ident = _morph_identity(element)
             if ident:
                 prev_by_id.setdefault(ident, element)
+        prev_by_sig = _unique_signature_index(prev_elements)
+        cur_by_sig = _unique_signature_index(slides[i].get("elements", []))
         matched = 0
         for element in slides[i].get("elements", []):
             ident = _morph_identity(element)
-            if not ident or ident not in prev_by_id:
+            partner = None
+            if ident and ident in prev_by_id:
+                partner = prev_by_id[ident]
+            else:
+                sig = _morph_signature(element)
+                # Only pair on a signature that is unique on BOTH slides.
+                if sig and sig in prev_by_sig and sig in cur_by_sig and cur_by_sig[sig] is element:
+                    partner = prev_by_sig[sig]
+            if partner is None:
                 continue
-            morph_key = f"auto:{ident}"
-            element.setdefault("morphKey", morph_key)
-            prev_by_id[ident].setdefault("morphKey", morph_key)
+            morph_key = f"auto:{ident or _morph_signature(element)}"
+            if not element.get("morphKey"):
+                element["morphKey"] = morph_key
+            if not partner.get("morphKey"):
+                partner["morphKey"] = morph_key
             matched += 1
         if matched and not slides[i].get("transition"):
             slides[i]["transition"] = {"type": "morph", "option": "byObject"}
@@ -1658,6 +1713,32 @@ _ANIM_EFFECT_FILTERS: dict[str, tuple[int, str]] = {
     "wipe": (22, "wipe(up)"),
 }
 
+
+def _animation_filter(base: str, animation: dict[str, Any], default: str) -> str:
+    if base != "wipe":
+        return default
+    direction = str(animation.get("direction") or animation.get("dir") or "").strip().lower()
+    aliases = {
+        "l": "left",
+        "left": "left",
+        "fromleft": "right",
+        "r": "right",
+        "right": "right",
+        "fromright": "left",
+        "t": "up",
+        "top": "up",
+        "u": "up",
+        "up": "up",
+        "fromtop": "down",
+        "b": "down",
+        "bottom": "down",
+        "d": "down",
+        "down": "down",
+        "frombottom": "up",
+    }
+    resolved = aliases.get(direction.replace("-", "").replace("_", "").replace(" ", ""))
+    return f"wipe({resolved})" if resolved else default
+
 # Modern combined entrances: fade + a directional slide (+ optional zoom) running
 # concurrently with shared easing — the tasteful "things settle into place" look
 # that a single canned preset cannot express. (dx, dy) are the START offset in
@@ -2060,6 +2141,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
     base = effect[len("exit-"):] if is_exit else effect
     if base in _ANIM_EFFECT_FILTERS:
         preset_id, filt = _ANIM_EFFECT_FILTERS[base]
+        filt = _animation_filter(base, animation, filt)
         preset_class = "exit" if is_exit else "entr"
         transition = "out" if is_exit else "in"
         visibility = "hidden" if is_exit else "visible"

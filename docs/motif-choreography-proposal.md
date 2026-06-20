@@ -1,7 +1,7 @@
 # Motif Choreography (`data-ppt-motif`)
 
-Status: **landed.** `timeline`, `layers`, `comparison`, and `metricCluster` are
-implemented. `hubSpoke` remains spec-only (needs connector-draw semantics).
+Status: **landed.** `timeline`, `layers`, `comparison`, `metricCluster`, and
+`hubSpoke` are implemented.
 
 Decisions taken (were the open questions):
 1. **Roles** — support both explicit `data-ppt-role` and inference.
@@ -74,8 +74,10 @@ is untouched.
   name: "timeline",                 // first bare token of the attribute
   raw:  "timeline; axis:x; from:left",
   params: { axis:"x", from:"left", dur:520, gap:140, overlap:120, ... },
-  spine: { key, cx, cy, w, h } | null,   // the axis/connector, if any
-  items: [ { key, role, cx, cy, w, h }, ... ]  // ordered later, by axis
+  items: [
+    { key, role, cx, cy, w, h, isLine, points? }, // ordered later by motif
+    ...
+  ]
 }
 ```
 
@@ -87,10 +89,10 @@ is untouched.
 ```js
 const MOTIF_REGISTRY = {
   timeline:   timelineMotif,     // implemented
-  layers:     layersMotif,       // spec only
-  comparison: comparisonMotif,   // spec only
-  hubSpoke:   hubSpokeMotif,     // spec only
-  metricCluster: metricClusterMotif, // spec only
+  layers:     layersMotif,       // implemented
+  comparison: comparisonMotif,   // implemented
+  hubSpoke:   hubSpokeMotif,     // implemented
+  metricCluster: metricClusterMotif, // implemented
 };
 
 function declaredPptMotifs(slide, elements) {
@@ -114,8 +116,8 @@ function + one table entry + one gallery example.
 Children are classified by, in order:
 
 1. explicit `data-ppt-role="spine|node|card|item|left|right|center"`;
-2. inference fallback — a `.ppt-line`/`<svg>`/very-thin-wide shape becomes the
-   `spine`; everything else is an `item`.
+2. inference fallback — a `.ppt-line`, SVG `line`/`polyline`, or very-thin-wide
+   shape becomes a line target; everything else is an `item`.
 
 Explicit roles are recommended in the gallery examples; inference keeps casual
 decks working.
@@ -158,7 +160,7 @@ Input:
 Emitted rows (conceptually):
 
 ```
-spine  entrance:wipe(left)            afterPrev     delay 0      dur 640
+spine  entrance:wipe(right)           afterPrev     delay 0      dur 640
 c1     compose opacity+x:-24+scale    withPrevious  delay 500   (640-140)
 n1     compose opacity+x:-24+scale    withPrevious  delay 650
 c2     compose ...                    withPrevious  delay 800
@@ -176,7 +178,7 @@ same x into a sub-group is a possible refinement — see open questions.)
 | `layers` | stacked bands | top→bottom tight cascade (70ms), slight `y` settle | **implemented** |
 | `comparison` | left vs right columns | symmetric entrance from both edges, paired by row, center divider last | **implemented** |
 | `metricCluster` | KPI tiles | soft rise (`y:18→0`) in reading order, gentle overlap | **implemented** |
-| `hubSpoke` | center + satellites + connectors | center grows first, spokes draw outward, satellites pop | spec |
+| `hubSpoke` | center + satellites + connectors | center grows first, spokes draw outward, satellites pop | **implemented** |
 
 ## Params per motif
 
@@ -184,17 +186,20 @@ same x into a sub-group is a possible refinement — see open questions.)
 - `layers`: `dur` (460), `gap` (70), `delay`, `trigger`.
 - `comparison`: `dur` (520), `gap` (120), `delay`, `trigger`; roles `left`/`right`/`center`.
 - `metricCluster`: `dur` (520), `gap` (90), `delay`, `trigger`.
+- `hubSpoke`: `dur` (520), `gap` (90), `overlap` (140), `delay`, `trigger`;
+  roles `center`/`spoke`/`satellite`. SVG `line`/`polyline` spokes are valid
+  targets; their endpoint geometry is used to choose outward wipe direction.
 
-## Companion: auto-Morph (separate, smaller follow-up)
+## Companion: auto-Morph
 
-Orthogonal to motifs and aimed at "should glide but jumps": default `autoMorph`
-on across adjacent slides, matching by `source.key` / identical text, so a
-carried title/card glides instead of re-entering. Independent change; do after
-`timeline` lands.
+Orthogonal to motifs and aimed at "should glide but jumps": `autoMorph` on a
+Morph slide matches adjacent-slide objects by explicit stable identity
+(`data-morph`, source id, or non-generated source key), then by unique identical
+text or image source. In HTML, use
+`data-ppt-transition="type:morph; auto:true"` on the destination slide to enable
+this without adding per-object `data-morph` keys.
 
 ## Next
 
-- `hubSpoke`: needs a connector-draw step (spokes as `.ppt-line` wiping outward
-  from the hub) before satellites pop — the only motif requiring per-role
-  effect *types* rather than one shared compose. Add when needed.
-- Auto-Morph follow-up (above) for adjacent-slide gliding.
+- More named information motifs can follow this pattern: add one choreography
+  function, one registry entry, one lint allow-list entry, and one smoke page.

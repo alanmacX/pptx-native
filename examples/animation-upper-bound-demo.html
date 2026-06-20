@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"PingFang SC","Microsoft YaHei","Aptos",Arial,sans-serif; background:#111; }
+  .ppt-slide {
+    position:relative;
+    width:1280px;
+    height:720px;
+    overflow:hidden;
+    background:#F7F4ED;
+  }
+  .ppt-textbox { position:absolute; color:#0F1B2D; line-height:1.25; }
+  .ppt-shape { position:absolute; }
+  .eyebrow { font-size:13px; font-weight:700; letter-spacing:0; color:#6B5DD3; }
+  .title { font-size:42px; font-weight:850; color:#0F1B2D; }
+  .sub { font-size:17px; color:#59646F; line-height:1.55; }
+  .chip { font-size:13px; color:#59646F; }
+  .card-shadow { box-shadow:0 22px 50px rgba(20,27,38,.14); }
+  .soft-border { border:1px solid rgba(15,27,45,.12); }
+  .mono { font-family:"Aptos Mono","SFMono-Regular",Consolas,monospace; }
+  .tiny { font-size:12px; color:#65717F; }
+</style>
+</head>
+<body>
+
+<section class="ppt-slide" data-slide="1" data-ppt-transition="type:fade">
+  <div class="ppt-textbox eyebrow" data-ppt-anim="entrance:fade; trigger:afterPrev; dur:360"
+    style="left:74px;top:58px;width:520px;">PPTX-NATIVE MOTION CEILING</div>
+  <div class="ppt-textbox title" data-ppt-anim="compose; opacity:in; x:-70; y:18; scaleFrom:.94; scaleTo:1; rotateFrom:-2; rotateTo:0; dur:680; delay:60; ease:out"
+    style="left:72px;top:82px;width:760px;">原生 PowerPoint 动画压力测试</div>
+  <div class="ppt-textbox sub" data-ppt-anim="entrance:rise; trigger:afterPrev; dur:520; delay:260"
+    style="left:76px;top:148px;width:760px;">所有对象都是可编辑的形状、文本、连接线和原生 timing。这个 demo 故意叠加 compose、sequence、motif、build、emphasis 和 Morph。</div>
+
+  <div class="ppt-shape card-shadow" data-shape="roundRect" data-ppt-anim="compose; opacity:in; x:-110; y:34; scaleFrom:.82; scaleTo:1; rotateFrom:-6; rotateTo:0; recolor:#0E9F8E; dur:760; delay:140; ease:out | emphasis:pulse; scale:108; repeat:2; dur:360; delay:900; trigger:withPrevious"
+    style="left:80px;top:258px;width:400px;height:256px;background:#0F1B2D;border-radius:28px;"></div>
+  <div class="ppt-textbox" data-ppt-anim="entrance:fade; trigger:withPrev; dur:360; delay:660"
+    style="left:118px;top:300px;width:330px;font-size:48px;font-weight:850;color:#FFFFFF;">compose</div>
+  <div class="ppt-textbox" data-ppt-anim="entrance:fade; trigger:withPrev; dur:360; delay:760"
+    style="left:120px;top:366px;width:320px;font-size:18px;color:#D8FFF5;line-height:1.55;">fade + motion + scale + rotation + recolor + pulse，落到同一个原生时间组。</div>
+
+  <div class="ppt-shape" data-shape="ellipse" data-ppt-anim="motion:path; path:M 0 0 L 0.08 -0.04 L 0.16 0.02 L 0.24 0; trigger:afterPrev; dur:1150; delay:420; ease:inout"
+    style="left:540px;top:306px;width:70px;height:70px;background:#F4B942;border-radius:50%;box-shadow:0 18px 34px rgba(244,185,66,.28);"></div>
+  <div class="ppt-shape" data-shape="ellipse" data-ppt-anim="emphasis:spin; spins:1; trigger:withPrev; dur:1050; delay:460"
+    style="left:778px;top:298px;width:96px;height:96px;background:#6B5DD3;border-radius:50%;"></div>
+  <div class="ppt-shape" data-shape="ellipse" data-ppt-anim="recolor:#E85D4F; trigger:withPrev; dur:820; delay:520"
+    style="left:816px;top:336px;width:20px;height:20px;background:#FFFFFF;border-radius:50%;"></div>
+
+  <div class="ppt-shape soft-border card-shadow" data-shape="roundRect" data-ppt-anim="entrance:wipe; direction:right; trigger:afterPrev; dur:620; delay:120"
+    style="left:540px;top:450px;width:580px;height:54px;background:#FFFFFF;border-radius:14px;"></div>
+  <div class="ppt-textbox mono" data-ppt-anim="entrance:fade; trigger:withPrev; dur:360; delay:540"
+    style="left:564px;top:466px;width:540px;font-size:15px;color:#0F1B2D;">p:set + p:animEffect + p:animMotion + p:animScale + p:animRot + p:animClr</div>
+  <div class="ppt-textbox tiny" data-ppt-anim="entrance:fade; trigger:afterPrev; dur:360; delay:760"
+    style="left:76px;top:620px;width:900px;">打开 PPT 后看动画窗格：这一页是多个原生 timing primitive 并行与串联，不是截图或视频。</div>
+</section>
+
+<section class="ppt-slide" data-slide="2" data-ppt-transition="type:push">
+  <div class="ppt-textbox eyebrow" style="left:72px;top:54px;width:440px;">CONTAINER SEQUENCE</div>
+  <div class="ppt-textbox title" data-ppt-anim="compose; opacity:in; x:-54; y:14; scaleFrom:.96; scaleTo:1; dur:560; trigger:afterPrev"
+    style="left:72px;top:78px;width:780px;">一条声明编排 16 个原生对象</div>
+  <div class="ppt-textbox sub" style="left:76px;top:136px;width:720px;">`data-ppt-sequence` 给一组子对象统一分配 overlap、delay、scale 和方向。适合卡片瀑布、证据流、流程步骤。</div>
+
+  <div data-ppt-sequence="stagger; selector:.seq; gap:58; overlap:190; y:30; scaleFrom:.92; scaleTo:1; rotateFrom:-2; rotateTo:0; dur:540; ease:out"
+    style="position:absolute;left:0;top:0;width:1280px;height:720px;">
+    <div class="ppt-shape seq card-shadow soft-border" data-shape="roundRect" style="left:82px;top:248px;width:250px;height:132px;background:#FFFFFF;border-radius:16px;"></div>
+    <div class="ppt-textbox seq" style="left:108px;top:276px;width:210px;font-size:22px;font-weight:800;">fade</div>
+    <div class="ppt-textbox seq chip" style="left:110px;top:316px;width:200px;">opacity reveal</div>
+
+    <div class="ppt-shape seq card-shadow soft-border" data-shape="roundRect" style="left:364px;top:248px;width:250px;height:132px;background:#E6F5F1;border-radius:16px;"></div>
+    <div class="ppt-textbox seq" style="left:390px;top:276px;width:210px;font-size:22px;font-weight:800;">motion</div>
+    <div class="ppt-textbox seq chip" style="left:392px;top:316px;width:200px;">settle into layout</div>
+
+    <div class="ppt-shape seq card-shadow soft-border" data-shape="roundRect" style="left:646px;top:248px;width:250px;height:132px;background:#FFF0E7;border-radius:16px;"></div>
+    <div class="ppt-textbox seq" style="left:672px;top:276px;width:210px;font-size:22px;font-weight:800;">scale</div>
+    <div class="ppt-textbox seq chip" style="left:674px;top:316px;width:200px;">soft attention</div>
+
+    <div class="ppt-shape seq card-shadow soft-border" data-shape="roundRect" style="left:928px;top:248px;width:250px;height:132px;background:#F0ECFF;border-radius:16px;"></div>
+    <div class="ppt-textbox seq" style="left:954px;top:276px;width:210px;font-size:22px;font-weight:800;">rotate</div>
+    <div class="ppt-textbox seq chip" style="left:956px;top:316px;width:200px;">small settle</div>
+  </div>
+
+  <div class="ppt-textbox" data-ppt-build="effect:wipe; trigger:afterPrev; dur:420"
+    style="left:100px;top:468px;width:990px;height:120px;font-size:22px;color:#0F1B2D;line-height:1.45;">
+    <div>构图先出主骨架，再出证据，再出解释文字。</div>
+    <div>同一组动画保持连续速度，不需要逐个节点手调。</div>
+    <div>文本 build 编译为 PowerPoint 原生 paragraph build。</div>
+  </div>
+</section>
+
+<section class="ppt-slide" data-slide="3" data-ppt-transition="type:fade">
+  <div class="ppt-textbox eyebrow" style="left:72px;top:54px;width:440px;">SEMANTIC MOTIF</div>
+  <div class="ppt-textbox title" data-ppt-anim="compose; opacity:in; x:-48; y:12; scaleFrom:.96; scaleTo:1; dur:560; trigger:afterPrev"
+    style="left:72px;top:78px;width:740px;">hubSpoke：中心生长，辐条外延</div>
+  <div class="ppt-textbox sub" style="left:76px;top:136px;width:690px;">motif 不定义视觉，只定义信息结构该怎么动。中心先出现，SVG connectors 按端点方向 wipe，卫星节点按角度错峰入场。</div>
+
+  <div data-ppt-motif="hubSpoke; dur:540; gap:85; overlap:150">
+    <svg style="position:absolute;left:0;top:0;width:1280px;height:720px;overflow:visible;">
+      <line data-ppt-role="spoke" x1="640" y1="404" x2="342" y2="250" stroke="#0E9F8E" stroke-width="3"></line>
+      <line data-ppt-role="spoke" x1="640" y1="404" x2="938" y2="250" stroke="#E85D4F" stroke-width="3"></line>
+      <line data-ppt-role="spoke" x1="640" y1="404" x2="324" y2="548" stroke="#2E6BE6" stroke-width="3"></line>
+      <line data-ppt-role="spoke" x1="640" y1="404" x2="956" y2="548" stroke="#F4B942" stroke-width="3"></line>
+    </svg>
+    <div class="ppt-shape card-shadow" data-ppt-role="center" data-shape="ellipse" style="left:546px;top:324px;width:188px;height:160px;background:#0F1B2D;border-radius:50%;"></div>
+
+    <div class="ppt-shape card-shadow soft-border" data-ppt-role="satellite" data-shape="roundRect" style="left:202px;top:190px;width:280px;height:120px;background:#FFFFFF;border-radius:16px;"></div>
+    <div class="ppt-shape card-shadow soft-border" data-ppt-role="satellite" data-shape="roundRect" style="left:798px;top:190px;width:280px;height:120px;background:#FFFFFF;border-radius:16px;"></div>
+    <div class="ppt-shape card-shadow soft-border" data-ppt-role="satellite" data-shape="roundRect" style="left:184px;top:488px;width:280px;height:120px;background:#FFFFFF;border-radius:16px;"></div>
+    <div class="ppt-shape card-shadow soft-border" data-ppt-role="satellite" data-shape="roundRect" style="left:816px;top:488px;width:280px;height:120px;background:#FFFFFF;border-radius:16px;"></div>
+  </div>
+
+  <div class="ppt-textbox" data-ppt-anim="entrance:fade; trigger:withPrev; dur:420; delay:280" style="left:584px;top:372px;width:120px;text-align:center;font-size:24px;font-weight:850;color:#FFFFFF;">Compiler</div>
+  <div class="ppt-textbox" data-ppt-role="satellite" data-ppt-anim="entrance:fade; trigger:withPrev; dur:360; delay:820" style="left:228px;top:218px;width:226px;font-size:20px;font-weight:800;">layout intent</div>
+  <div class="ppt-textbox chip" data-ppt-anim="entrance:fade; trigger:withPrev; dur:360; delay:900" style="left:230px;top:254px;width:220px;">DOM geometry becomes targets</div>
+  <div class="ppt-textbox" data-ppt-anim="entrance:fade; trigger:withPrev; dur:360; delay:905" style="left:824px;top:218px;width:226px;font-size:20px;font-weight:800;">native surface</div>
+  <div class="ppt-textbox chip" data-ppt-anim="entrance:fade; trigger:withPrev; dur:360; delay:985" style="left:826px;top:254px;width:220px;">shape, text, line, media</div>
+  <div class="ppt-textbox" data-ppt-anim="entrance:fade; trigger:withPrev; dur:360; delay:990" style="left:210px;top:516px;width:226px;font-size:20px;font-weight:800;">timing graph</div>
+  <div class="ppt-textbox chip" data-ppt-anim="entrance:fade; trigger:withPrev; dur:360; delay:1070" style="left:212px;top:552px;width:220px;">click groups and delays</div>
+  <div class="ppt-textbox" data-ppt-anim="entrance:fade; trigger:withPrev; dur:360; delay:1075" style="left:842px;top:516px;width:226px;font-size:20px;font-weight:800;">editable PPTX</div>
+  <div class="ppt-textbox chip" data-ppt-anim="entrance:fade; trigger:withPrev; dur:360; delay:1155" style="left:844px;top:552px;width:220px;">no raster fallback</div>
+</section>
+
+<section class="ppt-slide" data-slide="4" data-ppt-transition="type:fade">
+  <div class="ppt-textbox eyebrow" style="left:72px;top:54px;width:440px;">MORPH STATE A</div>
+  <div class="ppt-textbox title" style="left:72px;top:78px;width:790px;">同一组对象：分散的系统地图</div>
+  <div class="ppt-textbox sub" style="left:76px;top:136px;width:700px;">下一页不做同页入场，而是交给 Morph 计算位置、尺寸和颜色连续变化。</div>
+
+  <div class="ppt-shape card-shadow" data-morph="core" data-shape="roundRect" style="left:506px;top:292px;width:268px;height:150px;background:#0F1B2D;border-radius:26px;"></div>
+  <div class="ppt-textbox" data-morph="core-label" style="left:548px;top:344px;width:184px;text-align:center;font-size:28px;font-weight:850;color:#FFFFFF;">核心引擎</div>
+
+  <div class="ppt-shape card-shadow soft-border" data-morph="ingest" data-shape="roundRect" style="left:132px;top:180px;width:248px;height:112px;background:#E6F5F1;border-radius:18px;"></div>
+  <div class="ppt-textbox" data-morph="ingest-label" style="left:164px;top:218px;width:180px;font-size:22px;font-weight:800;">接入层</div>
+  <div class="ppt-shape card-shadow soft-border" data-morph="plan" data-shape="roundRect" style="left:900px;top:178px;width:248px;height:112px;background:#FFF0E7;border-radius:18px;"></div>
+  <div class="ppt-textbox" data-morph="plan-label" style="left:932px;top:216px;width:180px;font-size:22px;font-weight:800;">规划器</div>
+  <div class="ppt-shape card-shadow soft-border" data-morph="timing" data-shape="roundRect" style="left:126px;top:488px;width:248px;height:112px;background:#EEF0FF;border-radius:18px;"></div>
+  <div class="ppt-textbox" data-morph="timing-label" style="left:158px;top:526px;width:180px;font-size:22px;font-weight:800;">时间轴</div>
+  <div class="ppt-shape card-shadow soft-border" data-morph="writer" data-shape="roundRect" style="left:906px;top:492px;width:248px;height:112px;background:#FFF6D8;border-radius:18px;"></div>
+  <div class="ppt-textbox" data-morph="writer-label" style="left:938px;top:530px;width:180px;font-size:22px;font-weight:800;">OOXML writer</div>
+
+  <svg style="position:absolute;left:0;top:0;width:1280px;height:720px;overflow:visible;">
+    <line x1="380" y1="236" x2="506" y2="342" stroke="#0E9F8E" stroke-width="3"></line>
+    <line x1="900" y1="234" x2="774" y2="342" stroke="#E85D4F" stroke-width="3"></line>
+    <line x1="374" y1="544" x2="506" y2="404" stroke="#6B5DD3" stroke-width="3"></line>
+    <line x1="906" y1="548" x2="774" y2="404" stroke="#F4B942" stroke-width="3"></line>
+  </svg>
+</section>
+
+<section class="ppt-slide" data-slide="5" data-ppt-transition="type:morph; option:byObject; dur:1400; speed:slow">
+  <div class="ppt-textbox eyebrow" style="left:72px;top:54px;width:440px;">MORPH STATE B</div>
+  <div class="ppt-textbox title" style="left:72px;top:78px;width:790px;">同一组对象：收束为发布流水线</div>
+  <div class="ppt-textbox sub" style="left:76px;top:136px;width:700px;">带 `data-morph` 的对象使用 PowerPoint Morph 原生匹配，位置和大小由 PPT 插值。</div>
+
+  <div class="ppt-shape card-shadow soft-border" data-morph="ingest" data-shape="roundRect" style="left:126px;top:276px;width:206px;height:126px;background:#E6F5F1;border-radius:18px;"></div>
+  <div class="ppt-textbox" data-morph="ingest-label" style="left:154px;top:326px;width:150px;font-size:20px;font-weight:800;text-align:center;">接入层</div>
+  <div class="ppt-shape card-shadow soft-border" data-morph="plan" data-shape="roundRect" style="left:374px;top:276px;width:206px;height:126px;background:#FFF0E7;border-radius:18px;"></div>
+  <div class="ppt-textbox" data-morph="plan-label" style="left:402px;top:326px;width:150px;font-size:20px;font-weight:800;text-align:center;">规划器</div>
+  <div class="ppt-shape card-shadow" data-morph="core" data-shape="roundRect" style="left:622px;top:256px;width:242px;height:166px;background:#0F1B2D;border-radius:24px;"></div>
+  <div class="ppt-textbox" data-morph="core-label" style="left:652px;top:326px;width:184px;text-align:center;font-size:24px;font-weight:850;color:#FFFFFF;">核心引擎</div>
+  <div class="ppt-shape card-shadow soft-border" data-morph="timing" data-shape="roundRect" style="left:906px;top:276px;width:206px;height:126px;background:#EEF0FF;border-radius:18px;"></div>
+  <div class="ppt-textbox" data-morph="timing-label" style="left:934px;top:326px;width:150px;font-size:20px;font-weight:800;text-align:center;">时间轴</div>
+  <div class="ppt-shape card-shadow soft-border" data-morph="writer" data-shape="roundRect" style="left:542px;top:510px;width:260px;height:112px;background:#FFF6D8;border-radius:18px;"></div>
+  <div class="ppt-textbox" data-morph="writer-label" style="left:574px;top:548px;width:196px;font-size:20px;font-weight:800;text-align:center;">OOXML writer</div>
+
+  <svg style="position:absolute;left:0;top:0;width:1280px;height:720px;overflow:visible;">
+    <line x1="332" y1="339" x2="374" y2="339" stroke="#8A96A8" stroke-width="3"></line>
+    <line x1="580" y1="339" x2="622" y2="339" stroke="#8A96A8" stroke-width="3"></line>
+    <line x1="864" y1="339" x2="906" y2="339" stroke="#8A96A8" stroke-width="3"></line>
+    <line x1="744" y1="422" x2="672" y2="510" stroke="#8A96A8" stroke-width="3"></line>
+  </svg>
+</section>
+
+<section class="ppt-slide" data-slide="6" data-ppt-transition="type:fade">
+  <div class="ppt-textbox eyebrow" style="left:72px;top:54px;width:440px;">WHAT THIS DEMO PROVES</div>
+  <div class="ppt-textbox title" data-ppt-anim="compose; opacity:in; x:-48; y:14; scaleFrom:.96; scaleTo:1; dur:560; trigger:afterPrev"
+    style="left:72px;top:78px;width:820px;">现在的上限：不是“能动”，是能编排</div>
+
+  <div data-ppt-sequence="stagger; selector:.proof; gap:80; overlap:140; x:-28; y:16; scaleFrom:.96; scaleTo:1; dur:520; ease:out"
+    style="position:absolute;left:0;top:0;width:1280px;height:720px;">
+    <div class="ppt-shape proof card-shadow soft-border" data-shape="roundRect" style="left:92px;top:204px;width:320px;height:118px;background:#FFFFFF;border-radius:16px;"></div>
+    <div class="ppt-textbox proof" style="left:122px;top:232px;width:260px;font-size:22px;font-weight:850;">同页复杂 timing</div>
+    <div class="ppt-textbox proof chip" style="left:124px;top:270px;width:250px;">compose / sequence / build / emphasis</div>
+
+    <div class="ppt-shape proof card-shadow soft-border" data-shape="roundRect" style="left:480px;top:204px;width:320px;height:118px;background:#E6F5F1;border-radius:16px;"></div>
+    <div class="ppt-textbox proof" style="left:510px;top:232px;width:260px;font-size:22px;font-weight:850;">语义编排器</div>
+    <div class="ppt-textbox proof chip" style="left:512px;top:270px;width:250px;">timeline / hubSpoke / metric cluster</div>
+
+    <div class="ppt-shape proof card-shadow soft-border" data-shape="roundRect" style="left:868px;top:204px;width:320px;height:118px;background:#FFF0E7;border-radius:16px;"></div>
+    <div class="ppt-textbox proof" style="left:898px;top:232px;width:260px;font-size:22px;font-weight:850;">跨页连续性</div>
+    <div class="ppt-textbox proof chip" style="left:900px;top:270px;width:250px;">explicit Morph + autoMorph</div>
+  </div>
+
+  <div class="ppt-shape" data-shape="rect" data-ppt-anim="entrance:wipe; direction:right; trigger:afterPrev; dur:780; delay:360"
+    style="left:96px;top:424px;width:1088px;height:4px;background:linear-gradient(90deg,#0E9F8E,#6B5DD3,#E85D4F,#F4B942);"></div>
+  <div class="ppt-textbox mono" data-ppt-anim="entrance:fade; trigger:withPrev; dur:420; delay:720"
+    style="left:110px;top:466px;width:1040px;font-size:18px;color:#0F1B2D;">HTML intent -> browser geometry -> native scene -> OOXML timing tree -> editable .pptx</div>
+  <div class="ppt-textbox tiny" data-ppt-anim="entrance:fade; trigger:afterPrev; dur:380; delay:940"
+    style="left:110px;top:524px;width:1020px;">仍不是浏览器动画全集：3D、blur 动画、物理曲线和任意 JS 动画需要降解成这些原生 primitive 或 Morph。</div>
+</section>
+
+</body>
+</html>

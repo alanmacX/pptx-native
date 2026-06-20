@@ -28,15 +28,26 @@ slides. Unsupported native gaps must be reported as losses, never silently faked
 2. Query the native surface before using uncertain properties:
    - `node tools/ppt_surface_audit.cjs --check <carrier> <property>`
    - `node tools/ppt_surface_audit.cjs --carrier picture`
-3. Author the deck.
-4. Compile:
+3. Convert the user's request into an internal PPT orchestration brief before
+   authoring. For vague prompts, infer a complete brief and keep moving instead
+   of asking for review unless content is genuinely missing. Use
+   `references/prompt-orchestration.md` for the brief shape.
+4. Author the deck.
+   - For animated slides, declare the choreography contract on the slide:
+     `data-ppt-motion-preset="elegant"` plus `data-ppt-motion-intent="<intent>"`.
+     The normalizer can infer these, but explicit intent makes the output steadier.
+5. Compile:
    `skills/pptx-native/scripts/build.sh <input.html> <output.pptx>`
-5. Read the JSON report. Iterate until `ok:true`, validation errors are empty,
+6. Read the JSON report. Iterate until `ok:true`, validation errors are empty,
    and there are no unintended losses. Then read the lint `violations`: resolve
    every `LAYOUT_*` warning too. These flag silent misalignment (content spilling
    out of its card/panel, text running off-slide) that a clean compile does NOT
    catch — do not ship a deck that still has them.
-6. Verify the layout for real — this is mandatory, not optional. `ok:true` and
+   Run the automated gates directly; do not stop to ask the user for PPTX
+   conversion/animation-review permission. If a local PowerPoint visual export is
+   unavailable because of app permissions, keep the text gates moving and report
+   that visual QA was unavailable.
+7. Verify the layout for real — this is mandatory, not optional. `ok:true` and
    `0 losses` validate the COMPILE, not the layout: a deck can compile perfectly
    and still be visibly misaligned. Render the slides and actually look at them
    (`visual_qa.cjs`, or export+rasterize), checking specifically:
@@ -58,6 +69,7 @@ Load only what the task needs:
 - Carrier/property/effect questions: `references/native-surface-inventory.md`
 - Motion-heavy work: `references/animation.md`
 - Design quality, choreography, and de-AI copy: `references/design-and-motion.md`
+- Vague prompt -> implementation brief: `references/prompt-orchestration.md`
 - Asset search, local images, video, audio: `references/asset-search-and-media.md`
 - Machine manifest: `references/capabilities.json` (prefer query scripts over
   reading the full JSON into context)
@@ -83,8 +95,21 @@ For repo-local native scene JSON details, use `docs/native-authoring.md`.
   `references/asset-search-and-media.md` for the full when-to-search rubric.
 - Use `compose` for one object with concurrent fade/motion/scale/rotation/color.
 - Use `data-ppt-sequence` for overlapped child choreography.
+- Use `data-ppt-motif` for semantic groups (timeline, layers, comparison,
+  metricCluster, hubSpoke) instead of assigning independent fades to each child.
+- Use `data-ppt-ambient` for background/environment motion (drift, pan, breathe,
+  shimmer, path/orbit, rotate, media playback). It expands to native looping
+  primitives and is exempt from elegant-repeat clamping when marked ambient.
 - Use Morph only across adjacent slides; do not mix Morph slides with same-slide
   timing.
+- Default animated decks to `data-ppt-motion-preset="elegant"`. Under this
+  preset, avoid decorative gallery reveals (`blinds`, `checkerboard`, `wedge`,
+  `wheel`, etc.), spinning, and repeated pulses unless they have a concrete
+  semantic purpose; the guards will remap or clamp them during unattended builds.
+- Pick one motion grammar per slide: hierarchy/flow/timeline/comparison/layers/
+  metricCluster/hubSpoke/stateChange/gallery/mediaReveal/ambient. If more than
+  three objects move together, use one `data-ppt-sequence` or motif, not a pile of
+  per-element `data-ppt-anim` declarations.
 - Keep visual style user/content-driven. Do not introduce templates, house style,
   meaningless English subtitles, or rigid repeated card layouts.
 

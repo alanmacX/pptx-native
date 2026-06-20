@@ -542,10 +542,12 @@ function extractSlide(opts) {
       morph: el.getAttribute("data-morph") || null,
       dataShape: el.getAttribute("data-shape") || null,
       pptAnimRaw: el.getAttribute("data-ppt-anim") || null,
+      pptAmbientRaw: el.getAttribute("data-ppt-ambient") || null,
       pptBuildRaw: el.getAttribute("data-ppt-build") || null,
       pptGlowRaw: el.getAttribute("data-ppt-glow") || null,
       pptBlurRaw: el.getAttribute("data-ppt-blur") || null,
       pptReflectionRaw: el.getAttribute("data-ppt-reflection") || null,
+      motionPurposeRaw: el.getAttribute("data-ppt-motion-purpose") || el.getAttribute("data-motion-purpose") || null,
       cssFilter: style.filter && style.filter !== "none" ? String(style.filter) : null,
       pptMorphRaw: el.getAttribute("data-ppt-morph") || null,
     };
@@ -591,11 +593,39 @@ function extractSlide(opts) {
     }
     return sequences;
   };
+  const ambientsFor = (root) => {
+    const ambients = [];
+    const carriers = [
+      ...(root.matches("[data-ppt-ambient]") ? [root] : []),
+      ...root.querySelectorAll("[data-ppt-ambient]"),
+    ];
+    for (const el of carriers) {
+      const raw = el.getAttribute("data-ppt-ambient") || "";
+      const d = parseSeqDecl(raw);
+      let candidates = [];
+      if (d.selector) {
+        try { candidates = [...el.querySelectorAll(d.selector)]; }
+        catch { candidates = []; }
+      } else if (el.matches(COMPONENT_SEL)) {
+        candidates = [el];
+      } else {
+        candidates = [...el.querySelectorAll(COMPONENT_SEL)];
+      }
+      const targets = [];
+      for (const candidate of candidates) {
+        if (!candidate.matches(COMPONENT_SEL)) continue;
+        const key = animationTargetKeyFor(candidate);
+        if (key && !targets.includes(key)) targets.push(key);
+      }
+      if (targets.length) ambients.push({ raw, targets });
+    }
+    return ambients;
+  };
   // Collect [data-ppt-motif] containers. A motif names an information structure
   // (timeline, layers, comparison, ...); the node side maps it to a choreography
   // built from existing primitives. We only gather the children + their settled
   // centers here so the mapping can order them along an axis without DOM access.
-  const KNOWN_MOTIFS = new Set(["timeline", "layers", "comparison", "metriccluster"]);
+  const KNOWN_MOTIFS = new Set(["timeline", "layers", "comparison", "metriccluster", "hubspoke"]);
   const motifsFor = (root) => {
     const motifs = [];
     for (const el of root.querySelectorAll("[data-ppt-motif]")) {
@@ -608,7 +638,6 @@ function extractSlide(opts) {
         continue;
       }
       const params = parseSeqDecl(raw);
-      let spine = null;
       const items = [];
       for (const c of el.querySelectorAll(COMPONENT_SEL)) {
         if (!c.matches(COMPONENT_SEL)) continue;
@@ -616,12 +645,26 @@ function extractSlide(opts) {
         if (!key) continue;
         const role = (c.getAttribute("data-ppt-role") || "").trim().toLowerCase();
         const b = toStageRect(c.getBoundingClientRect());
-        const isLine = c.classList.contains("ppt-line") || c.tagName.toLowerCase() === "svg";
-        const rec = { key, role, cx: b.x + b.w / 2, cy: b.y + b.h / 2, w: b.w, h: b.h };
-        if (!spine && (role === "spine" || isLine)) spine = rec;
-        else items.push(rec);
+        const isLine = c.classList.contains("ppt-line") || c.tagName.toLowerCase() === "svg" || b.h <= 6 || b.w <= 6;
+        // Every child lands in items with an isLine flag; each motif classifies
+        // spine/spoke/center/satellite itself (a timeline has one spine line, a
+        // hub-spoke has many spoke lines).
+        items.push({ key, role, cx: b.x + b.w / 2, cy: b.y + b.h / 2, w: b.w, h: b.h, isLine });
       }
-      motifs.push({ name, raw, params, spine, items });
+      // SVG line/polyline primitives are auto-detected connectors; their compiled
+      // source.key equals animationTargetKeyFor, so they are valid motif targets
+      // (e.g. hub-spoke spokes) without a .ppt-line class.
+      for (const c of el.querySelectorAll("svg line, svg polyline")) {
+        const key = animationTargetKeyFor(c);
+        if (!key) continue;
+        const role = (c.getAttribute("data-ppt-role") || "").trim().toLowerCase();
+        const b = toStageRect(c.getBoundingClientRect());
+        const svg = c.closest("svg");
+        const tag = c.tagName.toLowerCase();
+        const points = svg ? svgPointsFor(c, tag, svg) : [];
+        items.push({ key, role, cx: b.x + b.w / 2, cy: b.y + b.h / 2, w: b.w, h: b.h, isLine: true, points });
+      }
+      motifs.push({ name, raw, params, items });
     }
     return motifs;
   };
@@ -852,6 +895,11 @@ function extractSlide(opts) {
   }
 
   const stageStyle = getComputedStyle(active);
+  const inheritedAttr = (name) =>
+    active.closest(`[${name}]`)?.getAttribute(name) ||
+    document.body?.getAttribute(name) ||
+    document.documentElement?.getAttribute(name) ||
+    null;
   return {
     step: opts.step,
     slideId: active.id || null,
@@ -860,6 +908,9 @@ function extractSlide(opts) {
     stage: { width: stageRect.width, height: stageRect.height },
     background: cssBackground(stageStyle),
     pptTransitionRaw: active.getAttribute("data-ppt-transition") || null,
+    motionPresetRaw: inheritedAttr("data-ppt-motion-preset"),
+    motionIntentRaw: inheritedAttr("data-ppt-motion-intent"),
+    ambients: ambientsFor(active),
     sequences: sequencesFor(active),
     motifs: motifsFor(active),
     elements,
@@ -1141,12 +1192,17 @@ function buildAuthorScene(ir) {
     applyPptEffects(slide, elements);
     const firstStep = ir.slides[0]?.step;
     const animations = slideAnimationsFor(slide, elements);
+    const transition = pptTransitionFor(slide, slide.step === firstStep);
+    const autoMorph = !!(transition && typeof transition === "object" && transition.auto);
     return {
       name: slide.slideId || `step-${slide.step}`,
       sourceStep: slide.step,
       sourceSlideId: slide.slideId,
       background: slideBg.alpha > 0.015 && !slideBg.gradient ? slideBg.hex : "FFFFFF",
-      transition: pptTransitionFor(slide, slide.step === firstStep),
+      transition,
+      ...(slide.motionPresetRaw ? { motionPreset: String(slide.motionPresetRaw) } : {}),
+      ...(slide.motionIntentRaw ? { motionIntent: String(slide.motionIntentRaw) } : {}),
+      ...(autoMorph ? { autoMorph: true } : {}),
       animations: animations.length ? { framework: "ppt-compatible-v1", effects: animations } : undefined,
       elements,
       unsupported: {
@@ -1221,6 +1277,10 @@ function pptTransitionFor(slide, isFirst) {
         option: d.option || "byObject",
         durationMs: Number(d.dur || d.durationMs || 1000),
         speed: d.speed || "slow",
+        // auto:true lets the compiler match carried objects to the previous
+        // slide automatically (no per-object data-morph). Inference + matching
+        // run on the assembled scene in pptx_native._infer_morph_keys.
+        auto: /^(true|1|yes|on)$/i.test(String(d.auto || "")),
       };
     }
     return type; // fade/push/wipe/split
@@ -1233,6 +1293,7 @@ function slideAnimationsFor(slide, elements) {
   // Animations come only from agent-declared data-ppt-* intent. The compiler
   // never choreographs a specific deck for the agent.
   return dedupeAnimations([
+    ...declaredPptAmbients(slide, elements),
     ...declaredPptAnimations(slide, elements),
     ...declaredPptSequences(slide, elements),
     ...declaredPptMotifs(slide, elements),
@@ -1264,13 +1325,16 @@ function timelineMotif(motif) {
     first = false;
   };
 
+  const items = motif.items || [];
+  const spine = items.find((it) => it.role === "spine") || items.find((it) => it.isLine) || null;
+  const nodes = items.filter((it) => it !== spine);
   const spineDur = Math.max(dur, 640);
-  if (motif.spine) {
-    push(motif.spine.key, pptAnimToIntent({ entrance: "wipe", dur: spineDur }), baseDelay);
+  if (spine) {
+    push(spine.key, pptAnimToIntent({ entrance: "wipe", direction: wipeDirectionFrom(from, axis), dur: spineDur }), baseDelay);
   }
-  const spineLead = motif.spine ? spineDur - overlap : 0;
+  const spineLead = spine ? spineDur - overlap : 0;
 
-  const ordered = [...(motif.items || [])].sort((a, b) => (axis === "x" ? a.cx - b.cx : a.cy - b.cy));
+  const ordered = [...nodes].sort((a, b) => (axis === "x" ? a.cx - b.cx : a.cy - b.cy));
   if (from === "right" || from === "bottom") ordered.reverse();
   const drift = from === "right" || from === "bottom" ? 24 : -24;
   ordered.forEach((it, i) => {
@@ -1286,6 +1350,13 @@ function timelineMotif(motif) {
     push(it.key, intent, baseDelay + spineLead + i * gap);
   });
   return rows;
+}
+
+function wipeDirectionFrom(from, axis = "x") {
+  if (from === "right") return "left";
+  if (from === "bottom") return "up";
+  if (from === "top") return "down";
+  return axis === "y" ? "down" : "right";
 }
 
 // layers: a stacked band diagram resolves top -> bottom in a tight cascade,
@@ -1358,11 +1429,83 @@ function metricClusterMotif(motif) {
   }));
 }
 
+// hubSpoke: the hub grows first, spokes (connector lines) draw outward, then
+// satellites pop in angular order. The only motif that uses different effect
+// TYPES per role (wipe for spokes, compose for nodes), not one shared compose.
+function hubSpokeMotif(motif) {
+  const p = motif.params || {};
+  const dur = numberOr(p.dur, 520);
+  const gap = numberOr(firstDefined(p.gap, p.stagger), 90);
+  const overlap = numberOr(p.overlap, 140);
+  const baseDelay = numberOr(p.delay, 0);
+  const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
+  const items = motif.items || [];
+  const spokes = items.filter((it) => it.role === "spoke" || (it.isLine && it.role !== "center"));
+  const nonLine = items.filter((it) => !spokes.includes(it));
+  let center = nonLine.find((it) => it.role === "center");
+  if (!center && nonLine.length) {
+    const pts = nonLine.filter((it) => it.role !== "center");
+    const ref = pts.length ? pts : nonLine;
+    const mx = ref.reduce((s, it) => s + it.cx, 0) / ref.length;
+    const my = ref.reduce((s, it) => s + it.cy, 0) / ref.length;
+    center = nonLine.reduce((best, it) => {
+      const d = (it.cx - mx) ** 2 + (it.cy - my) ** 2;
+      return !best || d < best._d ? Object.assign({ _d: d }, it) : best;
+    }, null);
+    center = nonLine.find((it) => it.key === center.key);
+  }
+  const cx = center ? center.cx : 0;
+  const cy = center ? center.cy : 0;
+  const byAngle = (a, b) => Math.atan2(a.cy - cy, a.cx - cx) - Math.atan2(b.cy - cy, b.cx - cx);
+  const spokeDirection = (spoke) => {
+    const pts = Array.isArray(spoke.points) ? spoke.points.filter((pt) => pt && Number.isFinite(pt.x) && Number.isFinite(pt.y)) : [];
+    let from = null;
+    let to = null;
+    if (pts.length >= 2) {
+      const first = pts[0];
+      const last = pts[pts.length - 1];
+      const firstD = (first.x - cx) ** 2 + (first.y - cy) ** 2;
+      const lastD = (last.x - cx) ** 2 + (last.y - cy) ** 2;
+      from = firstD <= lastD ? first : last;
+      to = firstD <= lastD ? last : first;
+    } else {
+      from = { x: cx, y: cy };
+      to = { x: spoke.cx, y: spoke.cy };
+    }
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? "right" : "left";
+    return dy >= 0 ? "down" : "up";
+  };
+  const satellites = nonLine.filter((it) => it !== center).sort(byAngle);
+  spokes.sort(byAngle);
+
+  const rows = [];
+  let first = true;
+  const push = (target, intent, delayMs) => {
+    if (!intent) return;
+    rows.push({ ...intent, target, trigger: first ? firstTrigger : "withPrevious", delayMs });
+    first = false;
+  };
+
+  const centerDur = Math.max(dur, 560);
+  if (center) push(center.key, pptAnimToIntent({ compose: true, opacity: "in", scaleFrom: 0.82, scaleTo: 1, dur: centerDur }), baseDelay);
+  const afterCenter = baseDelay + (center ? centerDur - overlap : 0);
+
+  const spokeDur = Math.max(Math.round(dur * 0.7), 360);
+  spokes.forEach((sp, i) => push(sp.key, pptAnimToIntent({ entrance: "wipe", direction: spokeDirection(sp), dur: spokeDur }), afterCenter + i * Math.min(gap, 60)));
+  const afterSpokes = afterCenter + (spokes.length ? spokeDur : 0);
+
+  satellites.forEach((st, i) => push(st.key, pptAnimToIntent({ compose: true, opacity: "in", scaleFrom: 0.85, scaleTo: 1, dur }), afterSpokes + i * gap));
+  return rows;
+}
+
 const MOTIF_REGISTRY = {
   timeline: timelineMotif,
   layers: layersMotif,
   comparison: comparisonMotif,
   metriccluster: metricClusterMotif,
+  hubspoke: hubSpokeMotif,
 };
 
 function declaredPptMotifs(slide, elements) {
@@ -1371,6 +1514,107 @@ function declaredPptMotifs(slide, elements) {
     const fn = MOTIF_REGISTRY[motif && motif.name];
     if (!fn) continue;
     rows.push(...fn(motif, elements));
+  }
+  return rows.filter((row) => row.target && animationTargetExists(elements, row.target));
+}
+
+function elementByAnimationTarget(elements) {
+  const out = new Map();
+  for (const element of elements || []) {
+    const key = animationTargetForElement(element);
+    if (key && !out.has(key)) out.set(key, element);
+  }
+  return out;
+}
+
+function compactToken(value) {
+  return String(value || "").trim().toLowerCase().replace(/[-_\s]/g, "");
+}
+
+function ambientMode(d) {
+  const explicit = d.mode || d.type || d.effect || d.ambient;
+  if (explicit) return compactToken(explicit);
+  for (const key of ["drift", "float", "pan", "breathe", "shimmer", "sweep", "recolor", "path", "orbit", "media", "play", "rotate"]) {
+    if (d[key] !== undefined) return key;
+  }
+  return "drift";
+}
+
+function ambientBaseIntent(d, element) {
+  const mode = ambientMode(d);
+  const trigger = normalizePptTrigger(firstDefined(d.trigger, "withPrevious"));
+  const durationMs = numberOr(firstDefined(d.dur, d.durationMs, d.duration), 8000);
+  const delayMs = numberOr(d.delay, 0);
+  const repeat = String(firstDefined(d.repeat, "infinite"));
+  const base = {
+    trigger,
+    durationMs,
+    delayMs,
+    repeat,
+    ambient: true,
+    ease: String(firstDefined(d.ease, "inout")).trim().toLowerCase(),
+  };
+  if (d.alt !== "false" && d.autoRev !== "false" && mode !== "shimmer" && mode !== "sweep" && mode !== "media" && mode !== "play") {
+    base.autoRev = true;
+  }
+  if (mode === "media" || mode === "play") {
+    if (element && String(element.type || "").toLowerCase() !== "media") return null;
+    return {
+      effect: "mediaPlay",
+      trigger,
+      delayMs,
+      ambient: true,
+      ...(d.startSeconds != null || d.startSec != null ? { startSeconds: Number(d.startSeconds ?? d.startSec) } : {}),
+    };
+  }
+  if (mode === "path" || mode === "orbit" || d.path || d.motion) {
+    const path = String(d.path || d.motion || "M 0 0 L 0.04 -0.02 L 0.08 0").trim();
+    return { ...base, effect: "motionPath", pptPath: path };
+  }
+  if (mode === "rotate") {
+    return {
+      ...base,
+      effect: "spin",
+      spins: numberOr(d.spins, 1),
+      byDeg: numberOr(d.byDeg, 360),
+    };
+  }
+  const out = { ...base, effect: "compose" };
+  if (mode === "breathe" || mode === "pulse") {
+    out.scaleFrom = numberOr(d.scaleFrom, 0.985);
+    out.scaleTo = numberOr(d.scaleTo, 1.015);
+  } else if (mode === "shimmer" || mode === "sweep") {
+    out.x = numberOr(firstDefined(d.x, d.dx), -140);
+    out.y = numberOr(firstDefined(d.y, d.dy), 0);
+    out.opacity = firstDefined(d.opacity, d.fade, "");
+  } else {
+    out.x = numberOr(firstDefined(d.x, d.dx), 16);
+    out.y = numberOr(firstDefined(d.y, d.dy), -10);
+    if (d.scaleFrom != null || d.scaleTo != null) {
+      out.scaleFrom = numberOr(d.scaleFrom, 1);
+      out.scaleTo = numberOr(d.scaleTo, 1);
+    }
+  }
+  if (mode === "recolor" || d.recolor || d.toColor) out.toColor = String(d.recolor || d.toColor || "#FFFFFF");
+  if (d.opacity || d.fade) out.opacity = String(d.opacity || d.fade).trim().toLowerCase();
+  return out;
+}
+
+function declaredPptAmbients(slide, elements) {
+  const rows = [];
+  const byTarget = elementByAnimationTarget(elements);
+  for (const ambient of slide.ambients || []) {
+    const targets = Array.isArray(ambient.targets) ? ambient.targets : [];
+    if (!targets.length) continue;
+    const d = parsePptDecl(ambient.raw || "");
+    const gap = numberOr(firstDefined(d.gap, d.stagger), 0);
+    const baseDelay = numberOr(d.delay, 0);
+    targets.forEach((target, index) => {
+      const element = byTarget.get(target);
+      const intent = ambientBaseIntent({ ...d, delay: baseDelay + index * gap }, element);
+      if (!intent) return;
+      rows.push({ ...intent, target, ambient: true });
+    });
   }
   return rows.filter((row) => row.target && animationTargetExists(elements, row.target));
 }
@@ -1419,6 +1663,7 @@ function pptAnimToIntent(d) {
   if (d.dur != null) base.durationMs = Number(d.dur);
   if (d.delay != null) base.delayMs = Number(d.delay);
   if (d.ease != null) base.ease = String(d.ease).trim().toLowerCase();
+  if (d.direction != null || d.dir != null || d.from != null) base.direction = String(firstDefined(d.direction, d.dir, d.from)).trim().toLowerCase();
   if (d.dist != null) base.dist = Number(d.dist);
   if (d.repeat != null) base.repeat = String(d.repeat).trim();
   if (d.alt !== undefined || d.autoRev !== undefined) base.autoRev = true;
@@ -1475,10 +1720,15 @@ function mediaCommandFor(d) {
   return null;
 }
 
+function isAmbientPurpose(value) {
+  return /^(ambient|background|backdrop|loop|atmosphere|texture|bg)$/i.test(compactToken(value));
+}
+
 function declaredPptAnimations(slide, elements) {
   const rows = [];
   for (const el of authoredNativeSources(slide)) {
     const source = sourceRef(el);
+    const ambient = isAmbientPurpose(el.motionPurposeRaw);
     // GUARD: data-ppt-anim and data-ppt-build must NOT coexist on the same element.
     // Combining them generates conflicting shape-level + paragraph-level animation OOXML
     // that PowerPoint flags as corrupt and "repairs" by deleting all animations.
@@ -1486,14 +1736,14 @@ function declaredPptAnimations(slide, elements) {
     if (el.pptAnimRaw && el.pptBuildRaw) {
       // Conflict resolution (e.g. morph object + entrance) is centralized in
       // tools/ppt_guards.cjs and runs on the assembled scene.
-      for (const intent of pptAnimIntents(el.pptAnimRaw)) rows.push({ ...intent, target: source.key });
+      for (const intent of pptAnimIntents(el.pptAnimRaw)) rows.push({ ...intent, target: source.key, ...(ambient ? { ambient: true } : {}) });
       // data-ppt-build intentionally skipped — mixing with data-ppt-anim is invalid.
       continue;
     }
     if (el.pptAnimRaw) {
       // A "|"-separated list chains multiple animations on one element, in order
       // (rise | pulse | exit) — the engine's coherent multi-animation primitive.
-      for (const intent of pptAnimIntents(el.pptAnimRaw)) rows.push({ ...intent, target: source.key });
+      for (const intent of pptAnimIntents(el.pptAnimRaw)) rows.push({ ...intent, target: source.key, ...(ambient ? { ambient: true } : {}) });
     }
     if (el.pptBuildRaw) {
       const d = parsePptDecl(el.pptBuildRaw);

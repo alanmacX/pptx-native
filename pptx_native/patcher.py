@@ -15,6 +15,7 @@ from .ooxml import (
     find_shapes,
     image_content_type,
     image_dimensions,
+    iter_shape_elements,
     next_media_name,
     next_rid,
     part_to_rels_path,
@@ -23,6 +24,7 @@ from .ooxml import (
     read_relationships,
     slide_part_for_number,
 )
+from .author import _timing_xml
 from .validator import validate_package
 
 
@@ -514,6 +516,57 @@ def _set_timing_attr(root: Path, op: dict[str, Any]) -> dict[str, Any]:
     return {"op": "setTimingAttr", "slide": slide_number, "path": path, "attr": attr}
 
 
+def _slide_shape_ids(slide_root) -> set[int]:
+    tree = slide_root.find("./p:cSld/p:spTree", NS)
+    if tree is None:
+        return set()
+    ids: set[int] = set()
+    for shape, _path in iter_shape_elements(tree):
+        cnvpr = cnvpr_for_shape(shape)
+        if cnvpr is None:
+            continue
+        try:
+            ids.add(int(cnvpr.attrib.get("id", "0")))
+        except ValueError:
+            continue
+    return ids
+
+
+def _replace_timing(root: Path, op: dict[str, Any]) -> dict[str, Any]:
+    slide_number, slide_path = _slide_path_from_op(root, op)
+    tree = parse_xml(slide_path)
+    slide_root = tree.getroot()
+    shape_ids = _slide_shape_ids(slide_root)
+    animations = op.get("animations", op.get("effects", []))
+    losses: list[dict[str, Any]] = []
+    timing, effect_count = _timing_xml(
+        {"effects": animations},
+        {},
+        shape_ids,
+        losses=losses,
+        slide_index=slide_number,
+    )
+    if losses:
+        raise ValueError(f"replaceTiming could not resolve all animation targets: {losses}")
+    if not timing.strip():
+        raise ValueError(f"replaceTiming produced no timing XML for slide {slide_number}.")
+
+    xml = _read_xml_text(slide_path)
+    span = _first_element_span(xml, "timing")
+    if span is None:
+        closing = re.search(r"</p:sld>\s*$", xml)
+        if closing is None:
+            raise ValueError(f"Could not find slide closing tag for slide {slide_number}.")
+        xml = xml[: closing.start()] + timing + xml[closing.start() :]
+        changed = "inserted"
+    else:
+        start, end = span
+        xml = xml[:start] + timing + xml[end:]
+        changed = "replaced"
+    _write_xml_text(slide_path, xml)
+    return {"op": "replaceTiming", "slide": slide_number, "changed": changed, "animationEffects": effect_count}
+
+
 def _replace_image(root: Path, op: dict[str, Any]) -> dict[str, Any]:
     slide_number, slide_path, _tree, _slide_root, matches = _load_slide(root, op)
     source = Path(str(op.get("file", op.get("path", "")))).expanduser()
@@ -599,6 +652,8 @@ def apply_patch_file(root: Path, patch_path: Path, validate: bool = True) -> dic
             results.append(_set_slide_attr_by_path(root, op))
         elif op_name == "setTimingAttr":
             results.append(_set_timing_attr(root, op))
+        elif op_name in {"replaceTiming", "setSlideTiming"}:
+            results.append(_replace_timing(root, op))
         elif op_name == "replaceImage":
             results.append(_replace_image(root, op))
         else:

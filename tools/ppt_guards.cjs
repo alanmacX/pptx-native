@@ -24,9 +24,53 @@ function setEffects(slide, effects) {
 
 const ENTRANCE = new Set(["fade","wipe","blinds","box","checkerboard","circle",
   "diamond","dissolve","plus","randombars","wedge","wheel","appear"]);
+const DECORATIVE_REVEALS = new Set(["blinds","box","checkerboard","circle",
+  "diamond","dissolve","plus","randombars","wedge","wheel"]);
+const EMPHASIS = new Set(["spin","grow","shrink","pulse"]);
+
 function isEntranceOrExit(effect) {
   const e = String(effect || "");
   return ENTRANCE.has(e) || e.startsWith("exit-");
+}
+function compactToken(value) {
+  return String(value || "").trim().toLowerCase().replace(/[-_\s]/g, "");
+}
+function isElegantPreset(value) {
+  const v = compactToken(value);
+  return v === "elegant" || v === "calm" || v === "executive";
+}
+function isAmbientEffect(slide, effect) {
+  return Boolean(effect.ambient) || compactToken(slide.motionIntent) === "ambient";
+}
+function elementByTarget(slide) {
+  const out = new Map();
+  for (const element of slide.elements || []) {
+    const key = element?.source?.key;
+    if (key && !out.has(key)) out.set(key, element);
+  }
+  return out;
+}
+function isLineLike(element) {
+  if (!element) return false;
+  if (["line", "polyline", "connector"].includes(String(element.type || "").toLowerCase())) return true;
+  const w = Number(element.w || element.cx || 0);
+  const h = Number(element.h || element.cy || 0);
+  return w <= 6 || h <= 6;
+}
+function clampRepeat(effect) {
+  if (effect.repeat == null) return false;
+  const raw = String(effect.repeat).trim().toLowerCase();
+  const n = Number(raw);
+  if (raw !== "infinite" && (!Number.isFinite(n) || n <= 2)) return false;
+  effect.repeat = "2";
+  return true;
+}
+function clampDuration(effect, maxMs) {
+  const current = Number(effect.durationMs ?? effect.duration);
+  if (!Number.isFinite(current) || current <= maxMs) return false;
+  effect.durationMs = maxMs;
+  delete effect.duration;
+  return true;
 }
 
 function isMorphTransition(value) {
@@ -136,11 +180,102 @@ function ruleClipOffCanvas(scene, corrections) {
   return n;
 }
 
+/**
+ * RULE elegant-motion-preset: `data-ppt-motion-preset="elegant"` is a promise
+ * that the final timing tree will avoid decorative PowerPoint gallery effects
+ * and repeated flourishes even if the HTML author drifted. This is intentionally
+ * a final guard, after normalization/lint, so unattended deck generation still
+ * lands on restrained motion.
+ */
+function ruleElegantMotionPreset(scene, corrections) {
+  let n = 0;
+  for (const slide of scene.slides || []) {
+    if (!isElegantPreset(slide.motionPreset)) continue;
+    const byTarget = elementByTarget(slide);
+    let flourishCount = 0;
+    const effects = effectsOf(slide).map((fx) => {
+      let out = fx;
+      const edit = () => {
+        if (out === fx) out = { ...fx };
+        return out;
+      };
+      const target = byTarget.get(fx.target);
+      const lineLike = isLineLike(target);
+      const rawEffect = String(fx.effect || "").trim();
+      const effect = rawEffect.toLowerCase();
+      const ambient = isAmbientEffect(slide, fx);
+      if (DECORATIVE_REVEALS.has(effect)) {
+        const e = edit();
+        e.effect = lineLike ? "wipe" : "fade";
+        if (lineLike && !e.direction) e.direction = "right";
+        corrections.push({ rule: "elegant-motion-preset", slide: slide.name, target: fx.target,
+          message: `remapped decorative ${rawEffect} entrance to ${e.effect}` });
+        n += 1;
+      } else if (effect.startsWith("exit-") && DECORATIVE_REVEALS.has(effect.slice(5))) {
+        const e = edit();
+        e.effect = lineLike ? "exit-wipe" : "exit-fade";
+        if (lineLike && !e.direction) e.direction = "right";
+        corrections.push({ rule: "elegant-motion-preset", slide: slide.name, target: fx.target,
+          message: `remapped decorative ${rawEffect} exit to ${e.effect}` });
+        n += 1;
+      }
+
+      const currentEffect = String(out.effect || "").toLowerCase();
+      if (currentEffect === "spin" && !ambient) {
+        const e = edit();
+        e.effect = "pulse";
+        e.scale = Math.min(Number(e.scale || 104), 106);
+        delete e.spins;
+        delete e.byDeg;
+        corrections.push({ rule: "elegant-motion-preset", slide: slide.name, target: fx.target,
+          message: "remapped spin to a small pulse under elegant motion preset" });
+        n += 1;
+      }
+
+      if (EMPHASIS.has(String(out.effect || "").toLowerCase()) && !ambient) {
+        flourishCount += 1;
+        if (flourishCount > 1) {
+          const e = edit();
+          e.effect = "compose";
+          e.scaleFrom = Number(e.scaleFrom || 0.98);
+          e.scaleTo = Number(e.scaleTo || 1);
+          e.durationMs = Math.min(Number(e.durationMs || e.duration || 360), 420);
+          delete e.duration;
+          delete e.repeat;
+          delete e.autoRev;
+          delete e.scale;
+          delete e.spins;
+          delete e.byDeg;
+          corrections.push({ rule: "elegant-motion-preset", slide: slide.name, target: fx.target,
+            message: "softened excess emphasis animation to a subtle compose settle" });
+          n += 1;
+        }
+      }
+
+      if (!ambient && clampRepeat(out)) {
+        corrections.push({ rule: "elegant-motion-preset", slide: slide.name, target: fx.target,
+          message: "clamped repeating animation to two iterations" });
+        n += 1;
+      }
+      if (!ambient && !["motionpath", "mediaplay", "mediapause", "mediastop", "build"].includes(String(out.effect || "").toLowerCase()) &&
+          clampDuration(out, 900)) {
+        corrections.push({ rule: "elegant-motion-preset", slide: slide.name, target: fx.target,
+          message: "clamped long non-motion animation duration to 900ms" });
+        n += 1;
+      }
+      return out;
+    });
+    setEffects(slide, effects);
+  }
+  return n;
+}
+
 const RULES = [
   ruleMorphEntrance,
   ruleMorphSlideTiming,
   ruleDropPhantom,
   ruleClipOffCanvas,
+  ruleElegantMotionPreset,
 ];
 
 function applyGuards(scene) {

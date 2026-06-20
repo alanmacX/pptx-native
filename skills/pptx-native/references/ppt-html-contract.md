@@ -71,6 +71,24 @@ The normalizer can repair a small subset of simple CSS keyframes (opacity,
 rotate, scale/pulse) into `data-ppt-anim`, but agents should still author the
 intent directly.
 
+### Slide-level motion contract
+```
+<section class="ppt-slide"
+  data-ppt-motion-preset="elegant"
+  data-ppt-motion-intent="timeline">
+```
+- `data-ppt-motion-preset`: `elegant` by default. Other accepted values are
+  `neutral`, `technical`, `expressive`, and `none`. The elegant preset favors
+  compose, sequence, motif choreography, Morph, fade, and line/spine wipes; it
+  treats decorative gallery reveals and repeated flourishes as hygiene issues.
+- `data-ppt-motion-intent`: the choreography goal for the slide. Use
+  `hierarchy`, `flow`, `sequence`, `timeline`, `comparison`, `layers`,
+  `metricCluster`, `hubSpoke`, `stateChange`, `gallery`, `mediaReveal`, or
+  `ambient`.
+- If a slide has several moving objects, declare the intent first, then choose
+  one grammar: `compose` for one focus, `data-ppt-sequence` for a group,
+  `data-ppt-motif` for semantic structures, or Morph for cross-slide state.
+
 ### `data-ppt-anim`
 ```
 data-ppt-anim="entrance:fade; trigger:afterPrev; dur:450; delay:0"
@@ -118,6 +136,19 @@ and grouped reveals where timing continuity matters.
 > one frame), or add the container's `left/top` to each overlay sibling. The
 > linter flags this as `LAYOUT_PANEL_OVERFLOW`.
 
+### `data-ppt-ambient` (background/environment motion)
+```
+data-ppt-ambient="drift; selector:.bg-orb; x:18; y:-10; dur:9000; repeat:infinite; alt; ease:inout"
+```
+Put this on a background container or a native target. It expands to native
+looping timing rows and is meant for low-salience environmental movement, not
+foreground builds. Modes: `drift`/`float`/`pan` (compose motion),
+`breathe`/`pulse` (compose scale), `shimmer`/`sweep` (one-way overlay drift),
+`recolor` (native `animClr`), `path`/`orbit` (raw PowerPoint motion path),
+`rotate` (native rotation), and `media`/`play` (native media command on
+`.ppt-media`). Ambient rows are marked `ambient:true`, so the elegant preset does
+not clamp intentional background loops.
+
 ### `data-ppt-motif` (semantic choreography)
 ```
 data-ppt-motif="timeline; axis:x; from:left; dur:520; gap:140; overlap:120"
@@ -127,22 +158,40 @@ same staggered native timing `data-ppt-sequence` produces — no per-child
 animation strings. Motifs carry no visual style. Mark children with
 `data-ppt-role` (`spine`/`node`/`card`/`left`/`right`/`center`/`item`) or let
 inference classify them. Known motifs: `timeline`, `layers`, `comparison`,
-`metricCluster` (an unknown name is reported, not silently ignored). See
+`metricCluster`, `hubSpoke` (an unknown name is reported, not silently ignored). See
 `docs/motif-choreography-proposal.md`.
 
 ### `data-ppt-morph` (slide-to-slide 平滑)
 - Mark the same object on adjacent slides with the same `data-morph` key and the
   compiler can morph it. PowerPoint only compares adjacent slides; a page cannot
   morph from a non-adjacent earlier page unless the same-key object is carried or
-  seeded on the immediately previous page. For HTML step flows, set
-  `autoMorph:true` on the scene and matching is automatic by `source.key` — no
-  per-object marking needed.
+  seeded on the immediately previous page. For HTML step flows, use
+  `data-ppt-transition="type:morph; auto:true"` on the destination slide; scene
+  JSON may also set `autoMorph:true`. Matching is automatic by explicit stable
+  identity (`data-morph`, source id, or non-generated source key), then by
+  unique identical text or image source — no per-object marking needed.
 - Options: byObject / byWord / byChar.
 
 ### Effects
 ```
 data-ppt-glow="color:#A78BFA; radius:18; alpha:0.8"
 ```
+
+### Advanced element control
+
+- Shapes: `data-shape` accepts the OOXML preset set; use CSS fill, border,
+  border-radius, linear/radial gradients, shadow, glow, blur, reflection, static
+  rotation/flip.
+- Text: use one `.ppt-textbox` with inline runs for continuous copy; control
+  font, size, weight, color, alignment, vertical alignment, line height, and
+  paragraph build.
+- Lines/freeforms: use `.ppt-line` or SVG line/polyline/path for editable
+  connectors and custom marks; use stroke width/color/dash and arrow ends.
+- Pictures/media: use local/data assets; style poster/picture geometry, shadow,
+  glow, blur, reflection, rotation, and choreograph with native timing.
+- Unsupported animated appearance changes (animated blur radius, arbitrary CSS
+  filters, 3D/perspective, skew) must be decomposed into supported sibling
+  objects, Morph, media, or explicit motion paths.
 
 ## 5. Enforcement (no-vision feedback loop)
 
@@ -151,9 +200,10 @@ Three text-only gates give an agent everything it needs to self-correct:
 1. **normalize** (`tools/ppt_html_normalize.cjs`): runs the page in a browser and
    deterministically fixes common authoring drift before lint/extract:
    unitless native geometry, `inset` shorthand, scrollable overflow, banned
-   gradients/filters/transforms, nested native objects, and simple static
-   rotation into `data-ppt-rotation`. This avoids slow LLM repair calls for
-   mistakes that have an obvious structural fix.
+   gradients/filters/transforms, nested native objects, missing motion
+   preset/intent, decorative animation drift under the elegant preset, and simple
+   static rotation into `data-ppt-rotation`. This avoids slow LLM repair calls
+   for mistakes that have an obvious structural fix.
 2. **lint** (`tools/ppt_html_lint.cjs`): runs the page in a browser and checks
    the subset — banned elements/CSS, undeclared CSS animation, and invalid
    `data-ppt-*` DSL (unknown effect/trigger) — emitting structured

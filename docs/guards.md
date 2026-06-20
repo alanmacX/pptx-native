@@ -26,6 +26,7 @@ semantics, we encode each conflict as a deterministic rule here.
 | `morph-slide-timing` | slide has a Morph transition and any same-slide animation timing | drop all same-slide animations on that Morph slide | PowerPoint for Mac can get stuck on backward navigation when Morph and a `p:timing` tree coexist on the same slide; put builds on a non-Morph slide |
 | `drop-phantom` | non-line element with width≤1 or height≤1 | remove it | stage/wrapper containers (e.g. `#s1`) get captured as invisible 0×0 shapes — noise |
 | `clip-offcanvas` | non-morph element fully outside the 1280×720 canvas | remove it | a common layout/overflow mistake; morph "engulf" objects are exempt (they exceed the canvas on purpose) |
+| `elegant-motion-preset` | slide has `motionPreset:"elegant"` and extracted non-ambient effects include decorative reveals, excess emphasis, unbounded repeat, or long non-motion duration | remap decorative reveal to fade/wipe, soften excess emphasis to compose, clamp repeat/duration; exempt `ambient:true` rows and ambient slides | unattended deck generation should land on restrained, intentional timing while still allowing intentional background/environment loops |
 
 ## Adding a rule
 

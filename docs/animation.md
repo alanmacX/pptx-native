@@ -20,6 +20,8 @@ Each slide can declare native animation effects:
 ```json
 {
   "name": "example",
+  "motionPreset": "elegant",
+  "motionIntent": "hierarchy",
   "elements": [
     {
       "type": "text",
@@ -39,6 +41,12 @@ Each slide can declare native animation effects:
   ]
 }
 ```
+
+`motionPreset` and `motionIntent` are orchestration metadata. They do not create
+visual style by themselves; they let normalize/lint/guards keep the timing tree
+coherent. `elegant` is the default profile for generated decks and clamps
+decorative reveal effects, excessive emphasis, long non-motion durations, and
+unbounded repeats before writing OOXML.
 
 Target lookup supports `shapeId`, `spid`, `target`, `targetKey`, `sourceKey`,
 `name`, and `id`. For HTML-derived scenes, the stable path is usually
@@ -73,8 +81,8 @@ For HTML step flows, you usually do not want to hand-assign `morphKey`. Set
 `autoMorph: true` at the scene level (or `autoMorph: true` on an individual
 slide), and the compiler will:
 
-- match objects that persist across adjacent slides by stable identity
-  (`source.key` first, then `name`/`id`),
+- match objects that persist across adjacent slides by explicit stable identity
+  first, then unique text/image signature,
 - give each matched pair a shared `morphKey` of the form `auto:<identity>`, and
 - set a Morph transition on the later slide when at least one object matches and
   the slide has no explicit transition.

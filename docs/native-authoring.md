@@ -101,7 +101,7 @@ PowerPoint's *Edit Data* opens the source. Series colors accept theme slots.
 - `"transition": "morph" | "fade" | "push" | "wipe" | "split"` (or `{type, durationMs, option}`).
 - `"animations": { "framework": "ppt-compatible-v1", "effects": [ {effect, target, start, delayMs, durationMs} ] }`
   — entrance/exit/emphasis/motionPath/build. See `animation.within` in capabilities and `docs/animation.md`.
-- Morph: give the same object a stable `source.key`/`morphKey` on adjacent slides, or set `autoMorph` (see `animation.between.morph`).
+- Morph: give the same object a stable `morphKey`/source id on adjacent slides, or set `autoMorph` for explicit identity plus unique text/image matching (see `animation.between.morph`).
 
 ## Loop
 
