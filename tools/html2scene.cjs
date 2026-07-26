@@ -545,6 +545,76 @@ function extractSlide(opts) {
     if (Math.abs(rotation) < 0.01) rotation = 0;
     return { rotation, flipH: false, flipV };
   };
+  // Compute the native picture crop for an <img>: (1) object-fit:cover maps a
+  // sub-rect of the source into the img box; (2) an overflow:hidden ancestor
+  // keeps a sub-rect of the img box visible. Compose both into a:srcRect
+  // fractions and a visible-box geometry override (EL-relative deltas).
+  const imageCrop = (imgNode, elRect) => {
+    if (!imgNode || !(imgNode.naturalWidth > 0) || !(imgNode.naturalHeight > 0)) return null;
+    const rect = imgNode.getBoundingClientRect();
+    if (!(rect.width > 0 && rect.height > 0)) return null;
+    const st = getComputedStyle(imgNode);
+    const natW = imgNode.naturalWidth;
+    const natH = imgNode.naturalHeight;
+    let sl = 0, stp = 0, sr = 0, sb = 0;
+    const fit = String(st.objectFit || "fill");
+    if (fit === "cover") {
+      const scale = Math.max(rect.width / natW, rect.height / natH);
+      const visW = rect.width / scale;
+      const visH = rect.height / scale;
+      const pos = String(st.objectPosition || "50% 50%").trim().split(/\s+/);
+      const frac = (tok, def) => (String(tok || "").endsWith("%") ? parseFloat(tok) / 100 : def);
+      const pxf = Math.max(0, Math.min(1, frac(pos[0], 0.5)));
+      const pyf = Math.max(0, Math.min(1, frac(pos[1], 0.5)));
+      sl = ((natW - visW) * pxf) / natW;
+      sr = ((natW - visW) * (1 - pxf)) / natW;
+      stp = ((natH - visH) * pyf) / natH;
+      sb = ((natH - visH) * (1 - pyf)) / natH;
+    } else if (fit !== "fill") {
+      // contain/none/scale-down letterbox instead of cropping; srcRect cannot
+      // express added padding — leave the picture unchanged.
+      return null;
+    }
+    let clip = imgNode.parentElement;
+    let clipRect = null;
+    while (clip && clip.nodeType === Node.ELEMENT_NODE) {
+      const cs = getComputedStyle(clip);
+      if (/(hidden|clip)/.test(`${cs.overflow} ${cs.overflowX} ${cs.overflowY}`)) {
+        clipRect = clip.getBoundingClientRect();
+        break;
+      }
+      if (clip.classList && (clip.classList.contains("ppt-slide") || clip.matches("[data-ppt='slide']"))) break;
+      clip = clip.parentElement;
+    }
+    let vis = rect;
+    if (clipRect) {
+      const left = Math.max(rect.left, clipRect.left);
+      const top = Math.max(rect.top, clipRect.top);
+      const right = Math.min(rect.right, clipRect.right);
+      const bottom = Math.min(rect.bottom, clipRect.bottom);
+      if (right - left <= 1 || bottom - top <= 1) return null;
+      vis = { left, top, width: right - left, height: bottom - top };
+    }
+    const fx0 = (vis.left - rect.left) / rect.width;
+    const fx1 = (vis.left + vis.width - rect.left) / rect.width;
+    const fy0 = (vis.top - rect.top) / rect.height;
+    const fy1 = (vis.top + vis.height - rect.top) / rect.height;
+    const spanX = 1 - sl - sr;
+    const spanY = 1 - stp - sb;
+    const l = sl + spanX * fx0;
+    const r = sr + spanX * (1 - fx1);
+    const t = stp + spanY * fy0;
+    const b = sb + spanY * (1 - fy1);
+    const eps = 0.002;
+    const hasCrop = l > eps || r > eps || t > eps || b > eps;
+    return {
+      crop: hasCrop ? { l, t, r, b } : null,
+      dx: vis.left - elRect.left,
+      dy: vis.top - elRect.top,
+      w: vis.width,
+      h: vis.height,
+    };
+  };
   const commonFor = (el, style, box, tag) => {
     const declaredRot = Number(el.getAttribute("data-ppt-rotation"));
     const css = nativeTransform(style);
@@ -790,11 +860,26 @@ function extractSlide(opts) {
     if (tag === "img" || el.classList.contains("ppt-picture")) {
       const imgNode = tag === "img" ? el : el.querySelector("img");
       const src = imgNode ? (imgNode.currentSrc || imgNode.src || null) : resolveUrl(el.getAttribute("data-src"));
-      images.push({
+      const record = {
         ...commonFor(el, style, box, tag),
         src,
         boxShadow: style.boxShadow && style.boxShadow !== "none" ? style.boxShadow : null,
-      });
+      };
+      // Web crop idioms -> native a:srcRect (Morph tweens srcRect: gate-verified,
+      // so a 2-slide crop pair is a native ken-burns). Handles object-fit:cover
+      // and overflow:hidden container clipping, composed.
+      const cropInfo = imageCrop(imgNode, el.getBoundingClientRect());
+      if (cropInfo) {
+        if (cropInfo.crop) record.crop = cropInfo.crop;
+        record.box = {
+          ...record.box,
+          x: record.box.x + cropInfo.dx,
+          y: record.box.y + cropInfo.dy,
+          w: cropInfo.w,
+          h: cropInfo.h,
+        };
+      }
+      images.push(record);
       continue;
     }
 
@@ -1179,6 +1264,7 @@ function buildAuthorScene(ir) {
         type: "image",
         name: sourceName(image, "image"),
         src: image.src,
+        ...(image.crop ? { crop: image.crop } : {}),
         x: box.x,
         y: box.y,
         w: box.w,

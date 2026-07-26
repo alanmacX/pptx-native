@@ -129,6 +129,13 @@ The author compiler now emits native `p:timing` for:
   file to fill) + `swift tools/ppt_movie_frames.swift deck.mov outdir [fps]`
   extracts exact-time frames for playback verification. Click-triggered
   sequences correctly do NOT fire in exported video.
+- native picture crop + ken-burns: `object-fit:cover` and overflow:hidden
+  container clipping compile to `a:srcRect` (composable; element geometry
+  becomes the visible intersection). Morph TWEENS srcRect (gate-verified), so
+  two slides with the same `data-morph` image at different zoom/pan states are
+  a native ken-burns — playback-verified via the movie lane. Morph also tweens
+  preset-geometry adj values (corner radius) and font size; gradients
+  cross-blend smoothly but do not parameter-interpolate.
 - browser-sampled motion: CSS animations the normalizer cannot statically map
   are no longer dropped — they are tagged `data-ppt-motion-sampled`, scrubbed
   in-session via the Web Animations API (`tools/motion_sampler.cjs`), and

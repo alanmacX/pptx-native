@@ -618,10 +618,11 @@ def _image_element_xml(
     glow = _scene_glow(element.get("glow"), sx)
     blur = _scene_blur(element.get("blur"), sx)
     reflection = _scene_reflection(element.get("reflection"), sx)
+    src_rect = _src_rect_xml(element.get("crop"))
     xml = (
         "      <p:pic>\n"
         f'        <p:nvPicPr><p:cNvPr id="{shape_id}" name="{_e(name)}"/><p:cNvPicPr><a:picLocks noChangeAspect="0"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>\n'
-        f'        <p:blipFill><a:blip r:embed="{_e(rid)}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>\n'
+        f'        <p:blipFill><a:blip r:embed="{_e(rid)}"/>{src_rect}<a:stretch><a:fillRect/></a:stretch></p:blipFill>\n'
         "        <p:spPr>\n"
         f'          <a:xfrm{rot}><a:off x="{x}" y="{y}"/><a:ext cx="{max(cx, 1)}" cy="{max(cy, 1)}"/></a:xfrm>\n'
         '          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>\n'
@@ -2681,6 +2682,23 @@ def _rotation_attr(value: Any) -> str:
     if abs(degrees) < 0.001:
         return ""
     return f' rot="{int(round(degrees * 60000))}"'
+
+
+def _src_rect_xml(crop: Any) -> str:
+    """Native picture crop. Fractions {l,t,r,b} in 0..1 -> a:srcRect in
+    1000ths of a percent. Morph tweens srcRect (gate-verified 2026-07-26), so
+    two slides with differing crops = native ken-burns."""
+    if not isinstance(crop, dict):
+        return ""
+    def _f(key: str) -> int:
+        try:
+            return max(0, min(99000, int(round(float(crop.get(key, 0)) * 100000))))
+        except (TypeError, ValueError):
+            return 0
+    l, t, r, b = _f("l"), _f("t"), _f("r"), _f("b")
+    if not (l or t or r or b):
+        return ""
+    return f'<a:srcRect l="{l}" t="{t}" r="{r}" b="{b}"/>'
 
 
 def _iterate_xml(animation: dict[str, Any]) -> str:
