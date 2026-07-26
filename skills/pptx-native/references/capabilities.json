@@ -847,12 +847,17 @@
     "within": {
       "entrance": [
         "blinds",
+        "bounce",
         "box",
         "checkerboard",
         "circle",
         "diamond",
         "dissolve",
         "fade",
+        "floatdown",
+        "floatin",
+        "flyin",
+        "growturn",
         "plus",
         "randombars",
         "rise",
@@ -861,10 +866,13 @@
         "slideleft",
         "slideright",
         "slideup",
+        "split",
+        "swivel",
         "wedge",
         "wheel",
         "wipe",
-        "zoom"
+        "zoom",
+        "zoomslide"
       ],
       "appear": true,
       "exit": [
@@ -882,10 +890,16 @@
         "exit-wipe"
       ],
       "emphasis": [
+        "colorpulse",
+        "complementary",
+        "darken",
+        "desaturate",
         "grow",
+        "objectcolor",
         "pulse",
         "shrink",
         "spin",
+        "teeter",
         "transparency"
       ],
       "recolor": {

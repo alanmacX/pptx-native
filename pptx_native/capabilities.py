@@ -29,7 +29,12 @@ def build_capabilities() -> dict[str, Any]:
     # filter_entrance = single-preset reveals (also usable as exit / text build).
     # entrance also exposes the modern combined fade+slide(+zoom) motion presets.
     filter_entrance = sorted(author._ANIM_EFFECT_FILTERS.keys())
-    entrance = sorted(set(filter_entrance) | set(author._MOTION_ENTRANCES.keys()))
+    template_entrance = {
+        name for name, spec in author._TEMPLATE_EFFECTS.items() if spec[0] == "entr"
+    }
+    entrance = sorted(
+        set(filter_entrance) | set(author._MOTION_ENTRANCES.keys()) | template_entrance
+    )
     emphasis = sorted(author._EMPHASIS_EFFECTS)
     presets = sorted(author._SHAPE_PRESETS)
     arrow_ends = sorted(author._ARROW_ENDS)

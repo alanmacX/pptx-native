@@ -327,9 +327,11 @@ async function main() {
           if (d.entrance && !isCompose && !vocab.entrance.includes(d.entrance))
             add(el, "error", "DSL_BAD_EFFECT", `entrance:${d.entrance} is not supported.`,
               `Use one of: ${vocab.entrance.join(", ")} or compose.`);
-          if (d.exit && !vocab.entrance.includes(d.exit))
+          // Exit vocabulary = entrance mirrors + the harvested exit-only names.
+          const exitExtras = ["flyout", "floatout", "shrinkturn", "growturn"];
+          if (d.exit && !vocab.entrance.includes(d.exit) && !exitExtras.includes(compactToken(d.exit)))
             add(el, "error", "DSL_BAD_EFFECT", `exit:${d.exit} is not supported.`,
-              `Use one of: ${vocab.entrance.join(", ")}.`);
+              `Use one of: ${vocab.entrance.join(", ")}, ${exitExtras.join(", ")}.`);
           if (d.emphasis && !vocab.emphasis.includes(d.emphasis))
             add(el, "error", "DSL_BAD_EFFECT", `emphasis:${d.emphasis} is not supported.`,
               `Use one of: ${vocab.emphasis.join(", ")}.`);

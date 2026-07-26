@@ -1765,9 +1765,10 @@ _MOTION_ENTRANCES: dict[str, tuple[float, float, float | None]] = {
     "slidedown":  (0.0, -0.045, None),
     "slideleft":  (0.060, 0.0,  None),
     "slideright": (-0.060, 0.0, None),
-    "zoom":       (0.0,  0.0,   0.90),
     "risezoom":   (0.0,  0.030, 0.94),
 }
+# "zoom" moved from the compose approximation to the harvested named preset
+# (entr:23:16, ribbon Zoom / object center) — see _TEMPLATE_EFFECTS.
 
 
 def _timing_xml(
@@ -2050,6 +2051,13 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
     ease = _ease_attr(animation)
     tmf = _tm_filter_attr(animation)
     iters = _iterate_xml(animation)
+    # Harvested named presets first: byte-faithful PowerPoint trees give the
+    # Animation Pane real, editable named effects (T0 of the parity ladder).
+    if effect in _TEMPLATE_EFFECTS:
+        templated = _template_effect_xml(animation, effect, node_id, node_type)
+        if templated is not None:
+            return templated
+        effect = "fade" if not effect.startswith("exit-") else "exit-fade"
     if effect == "appear":
         duration = max(1, duration)
     if effect == "compose":
@@ -2476,7 +2484,11 @@ def _build_reveal_effect(animation: dict[str, Any]) -> str:
     return effect
 
 
-_EMPHASIS_EFFECTS = {"spin", "grow", "shrink", "pulse", "transparency"}
+_EMPHASIS_EFFECTS = {
+    "spin", "grow", "shrink", "pulse", "transparency",
+    # harvested named presets (templates in preset_trees.json)
+    "teeter", "colorpulse", "desaturate", "darken", "objectcolor", "complementary",
+}
 _MEDIA_COMMAND_EFFECTS: dict[str, str] = {
     "mediaPlay": "playFrom(0.0)",
     "mediaPause": "togglePause",
@@ -2485,13 +2497,18 @@ _MEDIA_COMMAND_EFFECTS: dict[str, str] = {
 
 
 def _is_entrance_effect(effect: str) -> bool:
-    return effect == "appear" or effect in _ANIM_EFFECT_FILTERS or effect in _MOTION_ENTRANCES
+    if effect == "appear" or effect in _ANIM_EFFECT_FILTERS or effect in _MOTION_ENTRANCES:
+        return True
+    spec = _TEMPLATE_EFFECTS.get(effect)
+    return bool(spec and spec[0] == "entr")
 
 
 def _is_supported_effect(effect: str) -> bool:
     if effect in _MEDIA_COMMAND_EFFECTS:
         return True
     if effect in {"appear", "motionPath", "recolor", "compose", "transparency"} or effect in _EMPHASIS_EFFECTS or effect in _MOTION_ENTRANCES:
+        return True
+    if effect in _TEMPLATE_EFFECTS:
         return True
     base = effect[len("exit-"):] if effect.startswith("exit-") else effect
     return base in _ANIM_EFFECT_FILTERS
@@ -2516,6 +2533,28 @@ def _animation_effect(animation: dict[str, Any]) -> str:
         return "motionPath"
     if lowered in {"transparency", "dim", "emphasis-transparency", "emphasis-dim"}:
         return "transparency"
+    if lowered in {"fly-in", "flyin", "fly"}:
+        return "flyin"
+    if lowered in {"float-in", "floatin", "float", "float-up", "floatup", "ascend"}:
+        return "floatin"
+    if lowered in {"float-down", "floatdown", "descend"}:
+        return "floatdown"
+    if lowered in {"zoom-slide", "zoomslide", "zoom-slide-center", "zoomslidecenter"}:
+        return "zoomslide"
+    if lowered in {"grow-turn", "growturn", "grow-and-turn", "growandturn"}:
+        return "growturn"
+    if lowered in {"color-pulse", "colorpulse"}:
+        return "colorpulse"
+    if lowered in {"object-color", "objectcolor"}:
+        return "objectcolor"
+    if lowered in {"complementary", "complementary-color", "complementarycolor"}:
+        return "complementary"
+    if lowered in {"exit-fly", "exit-flyin", "exit-fly-out", "exit-flyout", "flyout"}:
+        return "exit-flyout"
+    if lowered in {"exit-float", "exit-floatout", "exit-float-out", "floatout"}:
+        return "exit-floatout"
+    if lowered in {"exit-shrink-turn", "exit-shrinkturn", "shrinkturn", "exit-growturn"}:
+        return "exit-growturn"
     if lowered in {"spin", "rotate", "emphasis-spin"}:
         return "spin"
     if lowered in {"grow", "grow-shrink", "growshrink", "scale-up", "scaleup", "emphasis-grow"}:
@@ -2737,6 +2776,108 @@ def _src_rect_xml(crop: Any) -> str:
     if not (l or t or r or b):
         return ""
     return f'<a:srcRect l="{l}" t="{t}" r="{r}" b="{b}"/>'
+
+
+_PRESET_TREES_CACHE: dict[str, Any] | None = None
+
+
+def _preset_trees() -> dict[str, Any]:
+    """Harvested PowerPoint effect trees (pptx_native/preset_trees.json).
+
+    Each template is a byte-faithful <p:par> subtree PowerPoint itself wrote
+    for a named effect, with ids/spids/grpIds/effect-delay as placeholders.
+    'Never guess a tree.'"""
+    global _PRESET_TREES_CACHE
+    if _PRESET_TREES_CACHE is None:
+        path = Path(__file__).resolve().parent / "preset_trees.json"
+        try:
+            _PRESET_TREES_CACHE = json.loads(path.read_text(encoding="utf-8")).get("trees", {})
+        except (OSError, ValueError):
+            _PRESET_TREES_CACHE = {}
+    return _PRESET_TREES_CACHE
+
+
+# effect name -> (presetClass, presetID, subtype or None = direction-driven).
+# IDs are EMPIRICAL (harvested corpus 2026-07-26), which corrected the public
+# interop tables: ribbon Zoom object-center is entr:23:16 (classic zoom) while
+# slide-center is entr:53:528; Swivel is 49 (not 45); Float In up/down = 42/47.
+_TEMPLATE_EFFECTS: dict[str, tuple[str, int, int | None]] = {
+    "flyin": ("entr", 2, None),
+    "floatin": ("entr", 42, 0),
+    "floatdown": ("entr", 47, 0),
+    "zoom": ("entr", 23, 16),
+    "zoomslide": ("entr", 53, 528),
+    "bounce": ("entr", 26, 0),
+    "swivel": ("entr", 49, 0),
+    "growturn": ("entr", 31, 0),
+    "split": ("entr", 16, 21),
+    "teeter": ("emph", 32, 0),
+    "colorpulse": ("emph", 27, 0),
+    "desaturate": ("emph", 25, 0),
+    "darken": ("emph", 24, 0),
+    "objectcolor": ("emph", 19, 0),
+    "complementary": ("emph", 21, 0),
+    "exit-flyout": ("exit", 2, None),
+    "exit-zoom": ("exit", 53, 32),
+    "exit-growturn": ("exit", 31, 0),
+    "exit-floatout": ("exit", 42, 0),
+    "exit-split": ("exit", 16, 21),
+}
+
+_FLYIN_DIR_SUBTYPE = {
+    "bottom": 4, "frombottom": 4, "up": 4,
+    "left": 8, "fromleft": 8,
+    "right": 2, "fromright": 2,
+    "top": 1, "fromtop": 1, "down": 1,
+    "bottomleft": 12, "bottomright": 6, "topleft": 9, "topright": 3,
+}
+
+
+def _template_effect_xml(
+    animation: dict[str, Any], effect: str, node_id: int, node_type: str,
+) -> tuple[str, int] | None:
+    spec = _TEMPLATE_EFFECTS.get(effect)
+    if not spec:
+        return None
+    cls, pid, sub = spec
+    if sub is None:
+        direction = str(animation.get("direction") or animation.get("from") or "")
+        direction = direction.strip().lower().replace("-", "").replace("_", "").replace(" ", "")
+        sub = _FLYIN_DIR_SUBTYPE.get(direction, 4)
+    trees = _preset_trees()
+    entry = trees.get(f"{cls}:{pid}:{sub}")
+    if entry is None:
+        # nearest harvested variant of the same effect (direction fallback)
+        prefix = f"{cls}:{pid}:"
+        entry = next((trees[k] for k in sorted(trees) if k.startswith(prefix)), None)
+    if entry is None:
+        return None
+    tpl = str(entry["template"])
+    # Proportional duration rescale, matching PowerPoint's own behavior when a
+    # user edits an effect's duration: every inner dur AND choreography delay
+    # scales; the head {DELAY} placeholder is untouched (substituted after).
+    requested = animation.get("durationMs", animation.get("duration"))
+    if requested is not None:
+        req = max(1, _ms(requested, 500))
+        durs = [int(d) for d in re.findall(r'dur="(\d+)"', tpl)]
+        natural = max(durs, default=0)
+        if natural > 1 and req != natural:
+            factor = req / natural
+            tpl = re.sub(r'dur="(\d+)"',
+                         lambda m: f'dur="{max(1, int(round(int(m.group(1)) * factor)))}"', tpl)
+            tpl = re.sub(r'delay="(\d+)"',
+                         lambda m: f'delay="{int(round(int(m.group(1)) * factor))}"', tpl)
+    spid = int(animation["_spid"])
+    grp = int(animation.get("_grpId", 0))
+    delay = _ms(animation.get("delayMs", animation.get("delay", 0)), 0)
+    id_names = list(dict.fromkeys(re.findall(r"\{(ID\d+)\}", tpl)))
+    for offset, name in enumerate(id_names):
+        tpl = tpl.replace(f"{{{name}}}", str(node_id + offset))
+    tpl = tpl.replace("{SPID}", str(spid))
+    tpl = tpl.replace("{GRPID}", str(grp))
+    tpl = tpl.replace("{DELAY}", str(delay))
+    tpl = re.sub(r'nodeType="\w+"', f'nodeType="{node_type}"', tpl, count=1)
+    return tpl, node_id + max(1, len(id_names))
 
 
 def _iterate_xml(animation: dict[str, Any]) -> str:

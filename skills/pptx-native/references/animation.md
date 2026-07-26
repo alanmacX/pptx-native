@@ -112,6 +112,16 @@ The author compiler now emits native `p:timing` for:
   `transparency` (aliases `dim`/`opacity`: partial-opacity tween a→b via
   `p:anim style.opacity` + `tavLst`, Animation Pane "Transparency"; DSL
   `emphasis:dim; to:0.35`, optional `from:`).
+- HARVESTED NAMED PRESETS (T0: byte-faithful PowerPoint trees from
+  `pptx_native/preset_trees.json`; the Animation Pane shows the real named,
+  human-editable effect). Entrances: `flyin` (+`from:bottom|left|right|top|…`),
+  `floatin`/`floatdown`, `zoom` (object center; `zoomslide` = slide center),
+  `bounce`, `swivel`, `growturn`, `split`. Emphasis: `teeter`, `colorpulse`,
+  `desaturate`, `darken`, `objectcolor`, `complementary`. Exits: `exit:flyout`,
+  `exit:floatout`, `exit:zoom`, `exit:shrinkturn`, `exit:split`, `exit:fade`.
+  `dur:` rescales the whole tree proportionally (PowerPoint's own duration
+  semantics). Playback-verified via the movie lane (fly-in travels, bounce
+  bounces).
 - exact easing beyond accel/decel: an animation row may carry `tmFilter`
   ("0,0; 0.25,0.07; …; 1,1") — a piecewise-linear time remap on the effect
   node, the compile target for arbitrary `cubic-bezier()`/`linear()` curves.
