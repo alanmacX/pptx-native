@@ -127,6 +127,10 @@ direction, speed `spd`, precise `p14:dur`, auto-advance `advTm`, sound. ✅ (fad
 - **what morph interpolates**: position, size, rotation, scale, fill color,
   opacity, text (byWord/byChar), even 3D. This is exactly "diff of the same object
   across two slides, auto-tweened" — the natural target for HTML step diffs.
+- **empirically gated 2026-07-26** (movie-lane frame analysis, desktop Mac):
+  preset-geometry adjust values (corner radius) TWEEN; font size TWEENS;
+  picture `srcRect` crop TWEENS (native ken-burns); gradient angle/stops
+  CROSS-BLEND smoothly but do not parameter-interpolate.
 - ✅ automatic `morphKey` inference from adjacent slides via `autoMorph` flag
   (matches by explicit stable identity or unique text/image signature, assigns
   shared `auto:<id>` names, sets the

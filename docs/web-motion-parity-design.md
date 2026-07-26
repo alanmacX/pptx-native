@@ -355,9 +355,21 @@ Each milestone ships user-visible value; nothing waits for the whole design.
 3. `p:anim` targets: `style.opacity` partial dim, `ppt_w/h`, `imageData.crop*`.
 4. `interactiveSeq` click triggers; `onMouseOver` (expected: fail → keep
    excluded).
-5. Morph property gates: gradient stops/angle, preset-geometry adj values,
-   `srcRect` crop, sp3d camera, letter-spacing; group-children matching;
-   whether source-side entrance animations break matching (and which kinds).
+5. Morph property gates — **RESULTS (2026-07-26, movie-lane frame analysis on
+   desktop PowerPoint Mac; test decks outputs/morph-gates.pptx +
+   morph-crop2.pptx, frames in outputs/morph-gates-frames/)**:
+   - position/size/solid color: TWEENS (control).
+   - gradient angle+stops (90°→270°): smooth CROSS-BLEND, not parameter
+     interpolation (no 180° pass-through mid-flight). Visually smooth and
+     usable; keyframe-exact gradient animation still needs decomposition.
+   - preset-geometry adj values (roundRect radius 6→90px): **TWEENS** —
+     previously undocumented anywhere; the T3 adj rung is OPEN.
+   - font size (28→72px): **TWEENS** (crisp intermediate sizes, no ghosting).
+   - picture crop `srcRect` (full→top-left quadrant): **TWEENS** — the native
+     ken-burns path is OPEN. Writer gap: author.py never emits srcRect yet.
+   - sp3d camera: untested (writer cannot express sp3d; hand-inject later).
+   Still open: group-children matching; whether source-side entrance
+   animations break matching (and which kinds).
 6. `advTm` vs still-running main sequence; ms precision drift across a
    10-slide chain; kiosk mode; Presenter View behavior on keyframe chains.
 7. Flipbook scheduling precision: 24-step 10ms-class stagger drift, measured
