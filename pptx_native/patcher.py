@@ -1250,6 +1250,24 @@ def apply_patch_file(root: Path, patch_path: Path, validate: bool = True) -> dic
         ops = patch
     if not isinstance(ops, list):
         raise ValueError("Patch file must be a list of operations or an object with an 'ops' list.")
+    # TRANSACTIONAL: a patch is all-or-nothing. Any failing op restores the
+    # deck to its pre-patch state so a mid-list error can never leave a
+    # half-modified deck behind.
+    backup = Path(str(root)) .parent / (Path(str(root)).name + ".patch-backup-tmp")
+    if backup.exists():
+        shutil.rmtree(backup)
+    shutil.copytree(root, backup)
+    try:
+        report = _apply_patch_ops(root, ops, validate=validate)
+    except BaseException:
+        shutil.rmtree(root)
+        backup.rename(root)
+        raise
+    shutil.rmtree(backup)
+    return report
+
+
+def _apply_patch_ops(root: Path, ops: list, validate: bool = True) -> dict[str, Any]:
     results = []
     for op in ops:
         if not isinstance(op, dict) or "op" not in op:
