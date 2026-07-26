@@ -19,7 +19,7 @@ Legend: ✅ implemented in this engine · 🟡 partial · ❌ not yet (gap to fi
 | `p:cxnSp` | connectors (straight/bent/curved, with arrowheads) | ✅ straight + head/tail arrows (triangle/stealth/arrow/diamond/oval); bent/curved ❌ |
 | `p:pic` | picture (crop, duotone, artistic effects) | 🟢 real local/data image |
 | `p:graphicFrame` → `a:tbl` | table | 🟡 basic |
-| `p:graphicFrame` → `c:chart` | chart | ❌ |
+| `p:graphicFrame` → `c:chart` | chart | ✅ bar/column/barh/line/pie via scene `type:"chart"` — real `c:chart` part with strRef/numRef formulas + caches, series solidFill (theme slots ok), title/legend/dataLabels, cat+val axes, and an **embedded editable xlsx** (Edit Data works); combo/scatter/area/axis formatting ❌ |
 | `p:graphicFrame` → `dgm` | SmartArt | ❌ |
 | `p:graphicFrame` → OLE | embedded object | ❌ |
 | `p:grpSp` | group | 🟡 |
@@ -70,7 +70,8 @@ nodes inside `p:timing`.
   writer emits the 12-filter subset below. 🟡→ expanding
 - `p:anim` — generic property tween (by/from/to; ppt_x/y/w/h, r, style.opacity,
   style.fontSize, imageData.crop*, 3d.*, drawProgress; tavLst keyframes with
-  calcmode lin/discrete/fmla). ❌ not yet emitted (target of the parity design)
+  calcmode lin/discrete/fmla). ✅ emitted for transparency emphasis + inside
+  harvested named-preset trees (fly-in tav formulas etc.); broader targets open
 - `p:animClr` — fill/stroke/text color tween. ✅ (compose mode)
 - `p:animMotion` — path. ✅
 - `p:animRot` — rotation (spin). ✅
@@ -83,12 +84,14 @@ nodes inside `p:timing`.
   (absolute-delay accumulation in the writer) ✅ / timed `auto`. ✅
 - `prevCondLst` / `nextCondLst`: click forward/back conditions. ✅
 - interactive sequences (`nodeType="interactiveSeq"` + `cond tgtEl` object-click
-  triggers). ❌ (parity design T1)
+  triggers). ✅ `trigger:click(#shape)` (full seq shape required: nextAc=seek +
+  endSync + nextCondLst)
 - **text build `bldP`/`bldLst`**: per-paragraph ✅ (`build="p"`, `spTgt/txEl/pRg`,
-  own `grpId`); by level / by char ❌; `p:iterate` per-letter/word cascade ❌
-  (parity design T0/T1)
+  own `grpId`); by level / by char ❌; `p:iterate` per-letter/word cascade ✅
+  (`byLetter[:ms]` / `byWord[:ms]`, playback-verified)
 - `repeatCount` ✅ (`indefinite` for ambient loops), `autoRev` ✅, `decel` ✅;
-  arbitrary easing via `tmFilter`/`tavLst` ❌ (parity design T1/T2)
+  exact easing via `tmFilter` ✅ (sampler auto-emits) and `tavLst` ✅
+  (transparency emphasis; harvested preset trees carry full tav/fmla)
 
 **animEffect entrance filter map** (presetID == MsoAnimEffect only for ids 1–24;
 modern ribbon effects diverge above: Float In=42, Zoom=53, Swivel=45, Bounce=26):
@@ -150,7 +153,7 @@ Priority order (highest ROI first):
 6. **Container choreography**: `data-ppt-sequence` expands child objects into
    staggered/overlapped native timing. ✅
 7. **Auto morphKey inference** from HTML step diffs. ✅ via `autoMorph` flag.
-8. Filled freeform ✅, connector arrowheads ✅, glow ✅. Charts / SmartArt /
-   media / bent connectors / soft-edge still ❌.
+8. Filled freeform ✅, connector arrowheads ✅, glow ✅, native charts (bar/column/
+   barh/line/pie + embedded xlsx) ✅. SmartArt / bent connectors / soft-edge still ❌.
 9. Web motion parity: see `docs/web-motion-parity-design.md` for the lowering
-   ladder (tavLst/tmFilter/iterate/interactiveSeq/morph-chain targets).
+   ladder; T0 named presets / tmFilter / iterate / interactiveSeq have SHIPPED.

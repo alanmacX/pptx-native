@@ -5,17 +5,31 @@
     {
       "name": "chart-demo",
       "elements": [
-        { "type": "chart", "chartType": "bar", "x": 80, "y": 90, "w": 700, "h": 520,
-          "title": "Quarterly Revenue", "legend": true,
-          "categories": ["Q1", "Q2", "Q3", "Q4"],
+        { "type": "chart", "chartType": "column", "x": 80, "y": 90, "w": 700, "h": 520,
+          "title": "季度营收（百万）", "legend": true,
+          "categories": ["一季度", "二季度", "三季度", "四季度"],
           "series": [
-            { "name": "Product A", "values": [12, 15, 14, 19], "color": "accent1" },
-            { "name": "Product B", "values": [8, 11, 13, 17], "color": "accent2" }
+            { "name": "产品 A", "values": [12, 15, 14, 19], "color": "accent1" },
+            { "name": "产品 B", "values": [8, 11, 13, 17], "color": "accent2" }
           ]
         },
         { "type": "chart", "chartType": "pie", "x": 820, "y": 120, "w": 380, "h": 380,
-          "title": "Share", "categories": ["A", "B", "C"],
+          "title": "Share", "dataLabels": true,
+          "categories": ["A", "B", "C"],
           "series": [ { "name": "Share", "values": [45, 35, 20] } ]
+        }
+      ]
+    },
+    {
+      "name": "chart-line",
+      "elements": [
+        { "type": "chart", "chartType": "line", "x": 140, "y": 100, "w": 1000, "h": 520,
+          "title": "Monthly Active Users", "legend": true, "dataLabels": false,
+          "categories": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+          "series": [
+            { "name": "iOS", "values": [3.2, 3.8, 4.1, 4.9, 5.6, 6.3], "color": "accent1" },
+            { "name": "Android", "values": [4.0, 4.4, 5.2, 5.9, 6.8, 7.5], "color": "accent2" }
+          ]
         }
       ]
     }

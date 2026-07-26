@@ -145,10 +145,17 @@ def create_deck(scene: dict[str, Any], out_dir: Path, overwrite: bool = False) -
 
     # Pre-scan charts: each needs its own part + embedded workbook, and the package
     # content types are written up front, so assign a global 1-based index now.
+    # Mirrors _chart_element_xml's skip condition so no override points at a
+    # part that the slide writer later declines to emit.
     chart_count = 0
     for slide in slides:
         for element in slide.get("elements", []):
-            if isinstance(element, dict) and element.get("type") == "chart":
+            if (
+                isinstance(element, dict)
+                and element.get("type") == "chart"
+                and element.get("categories")
+                and any(isinstance(s, dict) for s in element.get("series", []))
+            ):
                 chart_count += 1
                 element["_chartIndex"] = chart_count
 
@@ -165,6 +172,7 @@ def create_deck(scene: dict[str, Any], out_dir: Path, overwrite: bool = False) -
         "ok": True,
         "out": str(out_dir),
         "slides": len(slides),
+        "charts": chart_count,
         "slideSizeEmu": {"cx": cx, "cy": cy},
         "animations": {
             "slidesWithTiming": [report["slide"] for report in slide_reports if report.get("animationEffects")],
@@ -535,6 +543,14 @@ def _write_slide(root: Path, index: int, slide: dict[str, Any], cx: int, cy: int
             if element_xml:
                 rels.append((rid, f"{OFFICE_REL}/chart", f"../charts/chart{chart_n}.xml", None))
                 shape_id += 1
+            elif losses is not None:
+                losses.append({
+                    "code": "chart_missing_data",
+                    "where": {"slide": index},
+                    "target": name,
+                    "message": "chart element skipped: needs non-empty categories and series",
+                    "suggestion": 'provide "categories": [...] and "series": [{"name", "values"}]',
+                })
         else:
             element_xml, shape_id = _element_xml(shape_id, element, sx, sy)
         if element_xml:
@@ -874,19 +890,25 @@ def _chart_xml(element: dict[str, Any], embed_rid: str) -> str:
         _chart_series_xml(i, s.get("name", f"Series {i + 1}"), categories, s.get("values", []), sheet, s.get("color"))
         for i, s in enumerate(series)
     )
+    # CT_DLbls: the show* flags sit after ser* in every plot type's sequence.
+    dlbls_xml = (
+        '<c:dLbls><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/>'
+        '<c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls>'
+        if element.get("dataLabels") else ""
+    )
     ax1, ax2 = 111111111, 222222222
     if ctype in {"pie", "doughnut", "donut"}:
-        plot = f'<c:pieChart><c:varyColors val="1"/>{ser_xml}<c:firstSliceAng val="0"/></c:pieChart>'
+        plot = f'<c:pieChart><c:varyColors val="1"/>{ser_xml}{dlbls_xml}<c:firstSliceAng val="0"/></c:pieChart>'
     elif ctype == "line":
         plot = (
-            f'<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>{ser_xml}'
+            f'<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>{ser_xml}{dlbls_xml}'
             f'<c:marker val="1"/><c:axId val="{ax1}"/><c:axId val="{ax2}"/></c:lineChart>'
             + _cat_val_axes(ax1, ax2)
         )
     else:  # bar / column
         bar_dir = "bar" if ctype in {"barh", "hbar"} else "col"
         plot = (
-            f'<c:barChart><c:barDir val="{bar_dir}"/><c:grouping val="clustered"/><c:varyColors val="0"/>{ser_xml}'
+            f'<c:barChart><c:barDir val="{bar_dir}"/><c:grouping val="clustered"/><c:varyColors val="0"/>{ser_xml}{dlbls_xml}'
             f'<c:gapWidth val="150"/><c:axId val="{ax1}"/><c:axId val="{ax2}"/></c:barChart>'
             + _cat_val_axes(ax1, ax2)
         )

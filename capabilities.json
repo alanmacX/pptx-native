@@ -317,13 +317,14 @@
       ],
       "authorIRShape": {
         "type": "chart",
-        "chartType": "bar|line|pie",
+        "chartType": "bar|column|barh|line|pie",
         "x": "px",
         "y": "px",
         "w": "px",
         "h": "px",
         "title": "str?",
         "legend": "bool?",
+        "dataLabels": "bool?",
         "categories": "[str]",
         "series": "[{name, values:[num], color:hex|slot?}]"
       },
@@ -654,7 +655,8 @@
           "series",
           "seriesColor",
           "title",
-          "legend"
+          "legend",
+          "dataLabels"
         ],
         "effects": [],
         "timing": [
