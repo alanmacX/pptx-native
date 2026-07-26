@@ -1795,6 +1795,19 @@ def _timing_xml(
                 animation,
             )
             continue
+        if _animation_trigger(animation) == "click":
+            click_on = animation.get("clickOn") or animation.get("target")
+            click_targets = _resolve_animation_targets({"target": click_on}, target_map, shape_ids)
+            if click_targets:
+                animation = {**animation, "_clickSpid": int(click_targets[0])}
+            else:
+                _loss(
+                    "ANIM_CLICK_TRIGGER_NOT_FOUND",
+                    f"click() trigger shape not found: {click_on}; effect demoted to onClick",
+                    "Point trigger:click(...) at an element's source.key/name/id.",
+                    animation,
+                )
+                animation = {**animation, "trigger": "onClick"}
         effect = _animation_effect(animation)
         if effect == "motionPath" and not str(animation.get("pptPath") or animation.get("path") or "").strip():
             _loss(
@@ -1836,7 +1849,17 @@ def _timing_xml(
 
     groups: list[dict[str, Any]] = []
     current_group: dict[str, Any] | None = None
+    # click(#shape) rows leave the main sequence: each trigger shape gets its
+    # own interactive sequence (sibling of mainSeq under tmRoot).
+    interactive_by_spid: dict[int, list[dict[str, Any]]] = {}
+    mainline: list[dict[str, Any]] = []
     for animation in expanded:
+        if _animation_trigger(animation) == "click" and animation.get("_clickSpid"):
+            interactive_by_spid.setdefault(int(animation["_clickSpid"]), []).append(animation)
+        else:
+            mainline.append(animation)
+
+    for animation in mainline:
         trigger = _animation_trigger(animation)
         if current_group is None or trigger == "onClick":
             current_group = {"trigger": trigger, "items": []}
@@ -1903,25 +1926,79 @@ def _timing_xml(
             build_entries.setdefault(spid, f'<p:bldP spid="{spid}" grpId="0"/>')
         elif _is_entrance_effect(effect):
             build_entries.setdefault(spid, f'<p:bldP spid="{spid}" grpId="0"/>')
+    # Interactive sequences (object-click triggers). Emission matches the
+    # gate-verified PowerPoint shape exactly: nextAc="seek" + endSync +
+    # nextCondLst are all required (nextAc="none" triggers repair).
+    interactive_rows = []
+    for click_spid in sorted(interactive_by_spid):
+        items = interactive_by_spid[click_spid]
+        seq_id = node_id
+        g1 = node_id + 1
+        g2 = node_id + 2
+        node_id += 3
+        effect_rows = []
+        for animation in items:
+            xml, node_id = _animation_node_xml(animation, node_id, "clickEffect")
+            effect_rows.append(xml)
+        cond = (
+            f'<p:cond evt="onClick" delay="0"><p:tgtEl><p:spTgt spid="{click_spid}"/></p:tgtEl></p:cond>'
+        )
+        interactive_rows.append(
+            '            <p:seq concurrent="1" nextAc="seek">\n'
+            f'              <p:cTn id="{seq_id}" restart="whenNotActive" fill="hold" evtFilter="cancelBubble" nodeType="interactiveSeq">\n'
+            f"                <p:stCondLst>{cond}</p:stCondLst>\n"
+            '                <p:endSync evt="end" delay="0"><p:rtn val="all"/></p:endSync>\n'
+            "                <p:childTnLst>\n"
+            "                  <p:par>\n"
+            f'                    <p:cTn id="{g1}" fill="hold">\n'
+            '                      <p:stCondLst><p:cond delay="0"/></p:stCondLst>\n'
+            "                      <p:childTnLst>\n"
+            "                        <p:par>\n"
+            f'                          <p:cTn id="{g2}" fill="hold">\n'
+            '                            <p:stCondLst><p:cond delay="0"/></p:stCondLst>\n'
+            "                            <p:childTnLst>\n"
+            + "\n".join(effect_rows)
+            + "\n"
+            "                            </p:childTnLst>\n"
+            "                          </p:cTn>\n"
+            "                        </p:par>\n"
+            "                      </p:childTnLst>\n"
+            "                    </p:cTn>\n"
+            "                  </p:par>\n"
+            "                </p:childTnLst>\n"
+            "              </p:cTn>\n"
+            f"              <p:nextCondLst>{cond}</p:nextCondLst>\n"
+            "            </p:seq>\n"
+        )
+    interactive_xml = "".join(interactive_rows)
+
     build_list = "".join(build_entries[spid] for spid in sorted(build_entries))
     # An empty <p:bldLst/> is schema-invalid; omit it when there are no builds.
     bld_xml = f"    <p:bldLst>{build_list}</p:bldLst>\n" if build_list else ""
+    # An interactive-only slide has no main sequence (empty mainSeq childTnLst
+    # is schema-invalid).
+    mainseq_xml = ""
+    if group_rows:
+        mainseq_xml = (
+            '            <p:seq concurrent="1" nextAc="seek">\n'
+            '              <p:cTn id="2" dur="indefinite" nodeType="mainSeq">\n'
+            "                <p:childTnLst>\n"
+            + "\n".join(group_rows)
+            + "\n"
+            "                </p:childTnLst>\n"
+            "              </p:cTn>\n"
+            '              <p:prevCondLst><p:cond evt="onPrev" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>\n'
+            '              <p:nextCondLst><p:cond evt="onNext" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst>\n'
+            "            </p:seq>\n"
+        )
     timing = (
         "  <p:timing>\n"
         "    <p:tnLst>\n"
         "      <p:par>\n"
         '        <p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot">\n'
         "          <p:childTnLst>\n"
-        '            <p:seq concurrent="1" nextAc="seek">\n'
-        '              <p:cTn id="2" dur="indefinite" nodeType="mainSeq">\n'
-        "                <p:childTnLst>\n"
-        + "\n".join(group_rows)
-        + "\n"
-        "                </p:childTnLst>\n"
-        "              </p:cTn>\n"
-        '              <p:prevCondLst><p:cond evt="onPrev" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>\n'
-        '              <p:nextCondLst><p:cond evt="onNext" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst>\n'
-        "            </p:seq>\n"
+        f"{mainseq_xml}"
+        f"{interactive_xml}"
         "          </p:childTnLst>\n"
         "        </p:cTn>\n"
         "      </p:par>\n"
@@ -1958,6 +2035,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
     duration = _ms(animation.get("durationMs", animation.get("duration", 500)), 500)
     ease = _ease_attr(animation)
     tmf = _tm_filter_attr(animation)
+    iters = _iterate_xml(animation)
     if effect == "appear":
         duration = max(1, duration)
     if effect == "compose":
@@ -2058,7 +2136,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
         xml = (
             "                          <p:par>\n"
             f'                            <p:cTn id="{ctn_id}" presetID="10" presetClass="{preset_class}" presetSubtype="0" fill="hold"{tmf} grpId="{grp}" nodeType="{node_type}">\n'
-            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
+            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>{iters}\n'
             "                              <p:childTnLst>\n"
             + "".join(children)
             + "                              </p:childTnLst>\n"
@@ -2119,7 +2197,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
         xml = (
             "                          <p:par>\n"
             f'                            <p:cTn id="{ctn_id}" presetID="10" presetClass="entr" presetSubtype="0" fill="hold"{tmf} grpId="{grp}" nodeType="{node_type}">\n'
-            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
+            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>{iters}\n'
             "                              <p:childTnLst>\n"
             + "".join(children)
             + "                              </p:childTnLst>\n"
@@ -2134,7 +2212,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
         xml = (
             "                          <p:par>\n"
             f'                            <p:cTn id="{ctn_id}" presetID="1" presetClass="entr" presetSubtype="0" fill="hold" grpId="{grp}" nodeType="{node_type}">\n'
-            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
+            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>{iters}\n'
             "                              <p:childTnLst>\n"
             "                                <p:set>\n"
             "                                  <p:cBhvr>\n"
@@ -2165,7 +2243,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
         xml = (
             "                          <p:par>\n"
             f'                            <p:cTn id="{ctn_id}" presetID="{preset_id}" presetClass="{preset_class}" presetSubtype="0" fill="hold"{tmf} grpId="{grp}" nodeType="{node_type}">\n'
-            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
+            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>{iters}\n'
             "                              <p:childTnLst>\n"
             "                                <p:set>\n"
             "                                  <p:cBhvr>\n"
@@ -2195,7 +2273,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
         xml = (
             "                          <p:par>\n"
             f'                            <p:cTn id="{ctn_id}" presetID="6" presetClass="emph" presetSubtype="0" fill="hold" grpId="{grp}" nodeType="{node_type}">\n'
-            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
+            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>{iters}\n'
             "                              <p:childTnLst>\n"
             '                                <p:animClr clrSpc="rgb">\n'
             f'                                  <p:cBhvr><p:cTn id="{beh_id}" dur="{duration}"{repeat}{ease}{autorev} fill="hold"/><p:tgtEl>{sp_tgt}</p:tgtEl><p:attrNameLst><p:attrName>fillcolor</p:attrName></p:attrNameLst></p:cBhvr>\n'
@@ -2220,7 +2298,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
         xml = (
             "                          <p:par>\n"
             f'                            <p:cTn id="{ctn_id}" presetID="9" presetClass="emph" presetSubtype="0" fill="hold"{tmf} grpId="{grp}" nodeType="{node_type}">\n'
-            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
+            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>{iters}\n'
             "                              <p:childTnLst>\n"
             '                                <p:anim calcmode="lin" valueType="num">\n'
             f'                                  <p:cBhvr override="childStyle"><p:cTn id="{beh_id}" dur="{duration}"{repeat}{ease}{autorev} fill="hold"/><p:tgtEl>{sp_tgt}</p:tgtEl><p:attrNameLst><p:attrName>style.opacity</p:attrName></p:attrNameLst></p:cBhvr>\n'
@@ -2270,7 +2348,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
         xml = (
             "                          <p:par>\n"
             f'                            <p:cTn id="{ctn_id}" presetID="{preset_id}" presetClass="emph" presetSubtype="0" fill="hold"{tmf} grpId="{grp}" nodeType="{node_type}">\n'
-            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
+            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>{iters}\n'
             "                              <p:childTnLst>\n"
             + inner
             + "                              </p:childTnLst>\n"
@@ -2294,7 +2372,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
         xml = (
             "                          <p:par>\n"
             f'                            <p:cTn id="{ctn_id}" presetID="1" presetClass="mediacall" presetSubtype="0" fill="hold" grpId="{grp}" nodeType="{node_type}">\n'
-            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
+            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>{iters}\n'
             "                              <p:childTnLst>\n"
             f'                                <p:cmd type="call" cmd="{_e(cmd)}">\n'
             "                                  <p:cBhvr>\n"
@@ -2453,6 +2531,10 @@ def _animation_trigger(animation: dict[str, Any]) -> str:
         return "withPrevious"
     if value in {"afterprevious", "after", "auto"}:
         return "afterPrevious"
+    # click / click(#target): object-click interactive trigger. The trigger
+    # shape is resolved separately (clickOn -> _clickSpid).
+    if value == "click" or value.startswith("click("):
+        return "click"
     return "onClick"
 
 
@@ -2599,6 +2681,18 @@ def _rotation_attr(value: Any) -> str:
     if abs(degrees) < 0.001:
         return ""
     return f' rot="{int(round(degrees * 60000))}"'
+
+
+def _iterate_xml(animation: dict[str, Any]) -> str:
+    """Per-letter/word cascade (`p:iterate` on the effect cTn — the Animation
+    Pane's "Animate text: By letter/word"). Gate-verified in desktop
+    PowerPoint. Sits between stCondLst and childTnLst per CT order."""
+    kind = str(animation.get("textIterate") or "").strip().lower()
+    if kind not in {"lt", "wd", "letter", "byletter", "word", "byword"}:
+        return ""
+    t = "lt" if kind in {"lt", "letter", "byletter"} else "wd"
+    interval = _ms(animation.get("iterateMs", 40), 40)
+    return f'<p:iterate type="{t}"><p:tmAbs val="{max(1, interval)}"/></p:iterate>'
 
 
 def _tm_filter_attr(animation: dict[str, Any]) -> str:

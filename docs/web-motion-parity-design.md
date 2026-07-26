@@ -300,12 +300,17 @@ discounts at build time.
 Status 2026-07-26: **M0 complete** (all six items, verified by rebuild+render);
 **M1 core complete** (sampler + fitting + afterPrev absolute-delay resolution +
 sampledMotion disposition ledger; full MIR/constraint-solver re-rooting of the
-motif layer still pending); **M2 gate 1 passed on desktop PowerPoint Mac**
-(tmFilter + p:anim style.opacity + tavLst fmla accepted without repair —
-gate-test deck), and two T1/T2 rungs shipped: `transparency` partial-opacity
-emphasis and `tmFilter` exact easing (auto-emitted by the sampler when the
-accel/decel fit is poor). Playback-fidelity video QA and the remaining gates
-(iterate, interactiveSeq, Morph property gates, preset harvest) are open.
+motif layer still pending); **M2 gates 1–3 passed on desktop PowerPoint Mac**:
+(1) tmFilter + p:anim style.opacity + tavLst fmla accepted; (2) p:iterate
+accepted AND playback-verified (glyphs cascade in exported video); (3)
+interactiveSeq accepted — bisected: `nextAc="seek"` + `endSync` + `nextCondLst`
+are all required, `nextAc="none"` triggers repair. Shipped rungs:
+`transparency` emphasis, `tmFilter` exact easing, `byLetter/byWord` iterate,
+`trigger:click(#target)` interactive sequences. **Motion QA video lane is
+live**: AppleScript movie export (async) + `tools/ppt_movie_frames.swift`
+frame extraction; verified iterate cascades play and click-gated effects
+correctly hold. Open: Morph property gates (now runnable via the movie lane),
+full MIR re-rooting, preset-tree harvest, web-player matrix.
 
 - **M0 — bug debt + ledger schema (week one, all user-visible)**:
   four presetID constants (`author.py:1701-1714`: diamond 7→8, plus 12→13,

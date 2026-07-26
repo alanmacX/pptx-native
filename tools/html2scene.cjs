@@ -1368,6 +1368,9 @@ function resolveAfterPrev(rows) {
   for (const row of rows) {
     const trigger = String(row.trigger || "");
     const own = numberOr(row.delayMs, 0);
+    // click(#shape) rows live in their own interactive sequence: they neither
+    // shift with the main chain nor advance its cursor.
+    if (trigger === "click") continue;
     if (trigger === "onClick") {
       prevEnd = 0;
       blockShift = 0;
@@ -1747,8 +1750,19 @@ function pptAnimIntents(raw) {
 
 // Map a parsed data-ppt-anim declaration to a scene animation intent.
 function pptAnimToIntent(d) {
-  const trigger = normalizePptTrigger(d.trigger || d.start);
-  const base = { trigger };
+  // trigger:click(#hotspot) — object-click interactive sequence.
+  const rawTrigger = String(d.trigger || d.start || "");
+  const clickMatch = rawTrigger.trim().match(/^click\(\s*([^)]+)\s*\)$/i);
+  const trigger = clickMatch ? "click" : normalizePptTrigger(rawTrigger);
+  const base = { trigger, ...(clickMatch ? { clickOn: clickMatch[1].trim() } : {}) };
+  // byLetter / byWord: per-glyph text cascade (p:iterate). Value = interval ms.
+  if (d.byLetter !== undefined) {
+    base.textIterate = "lt";
+    base.iterateMs = numberOr(d.byLetter, 40);
+  } else if (d.byWord !== undefined) {
+    base.textIterate = "wd";
+    base.iterateMs = numberOr(d.byWord, 60);
+  }
   if (d.dur != null) base.durationMs = Number(d.dur);
   if (d.delay != null) base.delayMs = Number(d.delay);
   if (d.ease != null) base.ease = String(d.ease).trim().toLowerCase();

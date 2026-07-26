@@ -115,6 +115,20 @@ The author compiler now emits native `p:timing` for:
 - exact easing beyond accel/decel: an animation row may carry `tmFilter`
   ("0,0; 0.25,0.07; …; 1,1") — a piecewise-linear time remap on the effect
   node, the compile target for arbitrary `cubic-bezier()`/`linear()` curves.
+- per-letter/word text cascade: `byLetter[:ms]` / `byWord[:ms]` on any
+  `data-ppt-anim` declaration emits `p:iterate` on the effect node (Animation
+  Pane "Animate text: By letter/word"). Playback-verified via the movie QA
+  lane: glyphs genuinely cascade in exported video.
+- object-click interactive triggers: `trigger:click(#hotspot)` compiles to a
+  native interactive sequence (`nodeType="interactiveSeq"`, sibling of
+  mainSeq). Emission uses PowerPoint's exact shape — `nextAc="seek"` +
+  `endSync` + `nextCondLst` are all REQUIRED (`nextAc="none"` triggers repair;
+  gate-bisected 2026-07-26). Unresolvable trigger targets demote to onClick
+  with an ANIM_CLICK_TRIGGER_NOT_FOUND loss.
+- motion QA lane: AppleScript `save as save as movie` (async — wait for the
+  file to fill) + `swift tools/ppt_movie_frames.swift deck.mov outdir [fps]`
+  extracts exact-time frames for playback verification. Click-triggered
+  sequences correctly do NOT fire in exported video.
 - browser-sampled motion: CSS animations the normalizer cannot statically map
   are no longer dropped — they are tagged `data-ppt-motion-sampled`, scrubbed
   in-session via the Web Animations API (`tools/motion_sampler.cjs`), and

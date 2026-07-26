@@ -340,9 +340,10 @@ async function main() {
                 "Use media:play, media:pause, or media:stop.");
           }
           const trig = d.trigger;
-          if (trig && !vocab.triggers.map((t) => t.toLowerCase()).includes(String(trig).toLowerCase()))
+          const isClickTrigger = /^click\(\s*[^)]+\s*\)$/i.test(String(trig || ""));
+          if (trig && !isClickTrigger && !vocab.triggers.map((t) => t.toLowerCase()).includes(String(trig).toLowerCase()))
             add(el, "error", "DSL_BAD_TRIGGER", `trigger:${trig} is not a PPT trigger.`,
-              "Use onClick / withPrev / afterPrev / auto. Banned: hover, scroll, infinite.");
+              "Use onClick / withPrev / afterPrev / auto / click(#target). Banned: hover, scroll, infinite.");
         }
       }
       const sequenceDecl = el.getAttribute("data-ppt-sequence");
