@@ -1,0 +1,53 @@
+[
+  {
+    "op": "deleteShape",
+    "slide": 1,
+    "shapeId": 6
+  },
+  {
+    "op": "addTextbox",
+    "slide": 1,
+    "x": 914400,
+    "y": 457200,
+    "cx": 4572000,
+    "cy": 914400,
+    "text": "新增文本框\n第二段",
+    "fontSizePt": 24,
+    "bold": true,
+    "colorHex": "#1F2937",
+    "name": "intro-note"
+  },
+  {
+    "op": "addImage",
+    "slide": 1,
+    "path": "/absolute/path/to/logo.png",
+    "x": 6858000,
+    "y": 457200,
+    "cx": 914400,
+    "cy": 914400,
+    "name": "logo"
+  },
+  {
+    "op": "addImage",
+    "slide": 1,
+    "dataUri": "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==",
+    "x": 6858000,
+    "y": 1600200,
+    "cx": 457200,
+    "cy": 457200
+  },
+  {
+    "op": "duplicateSlide",
+    "slide": 1,
+    "after": 1
+  },
+  {
+    "op": "reorderSlide",
+    "slide": 2,
+    "before": 1
+  },
+  {
+    "op": "deleteSlide",
+    "slide": 2
+  }
+]

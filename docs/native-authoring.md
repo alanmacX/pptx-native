@@ -119,3 +119,33 @@ write scene.json → python -m pptx_native create scene.json --out deck --force
 `create` returns `losses[]` for any unsupported intent — fix and re-run; never ship
 a silent degrade. Worked examples: `examples/native-theme.json`,
 `examples/native-table.json`, `examples/native-chart.json`.
+
+## Patching existing decks
+
+`python -m pptx_native unpack in.pptx --out deck` → edit via a patch JSON →
+`python -m pptx_native patch deck ops.json` → `pack`. The patcher rewrites only
+the byte spans it targets — parts and XML it does not touch survive
+byte-identical (unknown extensions, vendor namespaces, whitespace included).
+Every op appends a machine-readable row to `applied[]` (with a `warnings[]`
+list); the patch auto-validates unless `--no-validate`.
+
+| op | args | effect |
+|---|---|---|
+| `setText` | `slide, shapeId\|name, text` | replace all text in the shape (first run keeps formatting) |
+| `setTextRun` | `slide, shapeId\|name, paragraph?, run?, path?, text` | replace one `a:t` run |
+| `moveShape` / `resizeShape` | `slide, shapeId\|name, x?,y?,cx?,cy?` (EMU) | rewrite `a:off` / `a:ext` |
+| `setAttrByPath` | `slide, shapeId\|name, path, attr, value` | set an attribute inside the shape subtree |
+| `setSlideAttrByPath` | `slide, path, attr, value` | set an attribute anywhere in the slide part |
+| `setTimingAttr` | `slide, path, attr, value` | set an attribute inside `p:timing` |
+| `replaceImage` | `slide, shapeId\|name, file` | new media part + rel, swap first `a:blip` (aspect-guarded) |
+| `deleteShape` | `slide, shapeId\|name` | remove the shape span; strip its timing effect nodes (`p:par` whose targets are all this shape), `bldP` entries, and the whole `p:timing` if nothing remains |
+| `addTextbox` | `slide, x,y,cx,cy` (EMU)`, text, fontSizePt?, bold?, colorHex?, name?` | insert a minimal `p:sp` textbox before `</p:spTree>`; `\n` splits paragraphs; fresh shape id |
+| `addImage` | `slide, path\|dataUri, x,y,cx,cy, name?` | write media part (+content-type default), append slide rel, insert `p:pic` |
+| `duplicateSlide` | `slide, after?` (default: after itself) | copy slide part + `.rels` verbatim, register in `sldIdLst`/presentation rels/`[Content_Types].xml`; warns on `!!` morph names and shared notes parts |
+| `deleteSlide` | `slide` | remove from `sldIdLst` (+custom shows), presentation rels, content types; delete the part, its `.rels`, and dedicated notesSlide; warns on truly-orphaned parts left behind |
+| `reorderSlide` | `slide, before` (`before = count+1` → move to end) | permute `p:sldId` entries in `sldIdLst` only |
+
+Slide numbers are **positions in `sldIdLst`** (1-based, re-evaluated per op), not
+part filenames. Shape selectors: `shapeId` (`p:cNvPr@id`), `name`, `creationId`,
+`kind`. Worked examples: `examples/patch.sample.json`,
+`examples/patch.native-control.json`, `examples/patch.structural.json`.
