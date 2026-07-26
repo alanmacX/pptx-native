@@ -78,19 +78,19 @@ def effect_pars(timing_xml: str):
 
 def template_tree(par_xml: str) -> tuple[str, dict]:
     """Replace volatile attributes with placeholders; return (template, meta)."""
-    head = re.search(
-        r'<p:cTn [^>]*presetID="(\d+)"[^>]*presetClass="(\w+)"[^>]*?(?:presetSubtype="(-?\d+)")?[^>]*>',
-        par_xml)
-    if not head:
-        # attribute order varies; retry with class first
-        head = re.search(
-            r'<p:cTn [^>]*presetClass="(\w+)"[^>]*presetID="(\d+)"[^>]*?(?:presetSubtype="(-?\d+)")?[^>]*>',
-            par_xml)
-        if not head:
-            return "", {}
-        cls, pid, sub = head.group(1), head.group(2), head.group(3) or "0"
-    else:
-        pid, cls, sub = head.group(1), head.group(2), head.group(3) or "0"
+    # Attribute order varies between writers: locate the head tag, then pull
+    # each attribute independently (an optional group inside one big regex
+    # gets swallowed by the adjacent [^>]* and silently reads subtype as 0).
+    head_tag = re.search(r'<p:cTn [^>]*presetClass="[^"]*"[^>]*>', par_xml)
+    if not head_tag:
+        return "", {}
+    tag = head_tag.group(0)
+    pid_m = re.search(r'presetID="(-?\d+)"', tag)
+    cls_m = re.search(r'presetClass="(\w+)"', tag)
+    sub_m = re.search(r'presetSubtype="(-?\d+)"', tag)
+    if not pid_m or not cls_m:
+        return "", {}
+    pid, cls, sub = pid_m.group(1), cls_m.group(1), (sub_m.group(1) if sub_m else "0")
 
     spids = sorted(set(re.findall(r'spid="(\d+)"', par_xml)), key=int)
     meta = {
