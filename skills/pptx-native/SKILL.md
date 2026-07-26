@@ -47,7 +47,9 @@ slides. Unsupported native gaps must be reported as losses, never silently faked
    conversion/animation-review permission. If a local PowerPoint visual export is
    unavailable because of app permissions, keep the text gates moving and report
    that visual QA was unavailable.
-7. Verify the layout for real — this is mandatory, not optional. `ok:true` and
+7. Verify the layout for real — this is mandatory, not optional. When
+   re-exporting after a rebuild, `pkill -x "Microsoft PowerPoint"` first —
+   an open stale document silently re-exports the OLD deck. `ok:true` and
    `0 losses` validate the COMPILE, not the layout: a deck can compile perfectly
    and still be visibly misaligned. Render the slides and actually look at them
    (`visual_qa.cjs`, or export+rasterize), checking specifically:

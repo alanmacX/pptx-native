@@ -514,6 +514,15 @@ def _write_slide(root: Path, index: int, slide: dict[str, Any], cx: int, cy: int
             if element_xml and media_name:
                 rels.append((rid, f"{OFFICE_REL}/image", f"../media/{media_name}", None))
                 media_index += 1
+            elif losses is not None:
+                losses.append({
+                    "code": "IMAGE_SOURCE_UNREADABLE",
+                    "where": {"slide": index},
+                    "target": name,
+                    "message": f"image element skipped: source could not be loaded ({str(element.get('src'))[:120]})",
+                    "suggestion": "use an absolute file:// path or data: URI; relative paths break "
+                                  "when the pipeline stages HTML in a temp directory",
+                })
         elif element_type == "media":
             link_rid = f"rId{len(rels) + 1}"
             embed_rid = f"rId{len(rels) + 2}"
@@ -2899,6 +2908,11 @@ def _template_effect_xml(
     tpl = tpl.replace("{GRPID}", str(grp))
     tpl = tpl.replace("{DELAY}", str(delay))
     tpl = re.sub(r'nodeType="\w+"', f'nodeType="{node_type}"', tpl, count=1)
+    # byLetter/byWord works on named presets too: p:iterate sits on the head
+    # effect cTn, right after its stCondLst (CT child order).
+    iters = _iterate_xml(animation)
+    if iters:
+        tpl = re.sub(r"(</p:stCondLst>)", r"\g<1>" + iters, tpl, count=1)
     return tpl, node_id + max(1, len(id_names))
 
 

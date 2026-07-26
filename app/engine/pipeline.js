@@ -143,12 +143,23 @@ function sceneStats(scene) {
 }
 
 /** Full pipeline. Returns a structured report for the UI / LLM auto-fix loop. */
+// The pipeline stages HTML in a temp dir, which would break relative asset
+// URLs (img/video src). Injecting <base href="file://<original dir>/"> keeps
+// them resolving against the authored file's directory.
+function withBaseHref(html, baseDir) {
+  if (!baseDir || /<base\s/i.test(html)) return html;
+  const href = "file://" + String(baseDir).replace(/\/?$/, "/");
+  const tag = `<base href="${href}">`;
+  if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => m + tag);
+  return tag + html;
+}
+
 function buildFromHtml(html, outPptx, opts = {}) {
   const timings = {};
   const totalStart = ms();
   const dir = tmpdir();
   const htmlPath = path.join(dir, "slide.html");
-  const checked = normalizeAndLintHtml(html, timings);
+  const checked = normalizeAndLintHtml(withBaseHref(html, opts.baseDir), timings);
   fs.writeFileSync(htmlPath, checked.html);
   const scenePath = path.join(dir, "scene.json");
   const scene = timed(timings, "extractMs", () => extract(htmlPath, scenePath, opts));
@@ -203,7 +214,8 @@ if (require.main === module) {
     process.exit(1);
   }
   const html = fs.readFileSync(path.resolve(input), "utf8");
-  withSharedBrowser(() => buildFromHtml(html, path.resolve(out), { steps }))
+  const baseDir = path.dirname(path.resolve(input));
+  withSharedBrowser(() => buildFromHtml(html, path.resolve(out), { steps, baseDir }))
     .then((report) => {
       console.log(JSON.stringify(report, null, 2));
       process.exit(report.ok ? 0 : 2);

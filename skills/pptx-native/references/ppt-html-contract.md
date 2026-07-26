@@ -19,6 +19,11 @@ Authoritative companions:
 
 ## 1. Canvas
 
+> Rendering note: near-black `linear-gradient` slide backgrounds band visibly
+> in PowerPoint's renderer — prefer a solid dark fill (or add subtle noise via
+> a picture layer) for dark decks.
+
+
 - One fixed-size stage per slide (e.g. `1280×720` → 16:9). Use absolute layout
   with deterministic bounding boxes.
 - Multiple slides = multiple `<section class="slide" data-slide="N">`, or
@@ -192,6 +197,11 @@ inference classify them. Known motifs: `timeline`, `layers`, `comparison`,
   cross-blend smoothly (not parameter-exact).
 
 ### `data-ppt-morph` (slide-to-slide 平滑)
+
+> A Morph slide strips ALL same-slide timing — including `data-ppt-ambient`
+> loops (source-side animations can silently break Morph matching). Put
+> entrances on the slide BEFORE the morph; keep the morph slide static.
+
 - Mark the same object on adjacent slides with the same `data-morph` key and the
   compiler can morph it. PowerPoint only compares adjacent slides; a page cannot
   morph from a non-adjacent earlier page unless the same-key object is carried or
