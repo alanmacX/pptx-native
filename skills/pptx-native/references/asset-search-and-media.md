@@ -42,6 +42,13 @@ Restraint rules:
    node tools/ppt_asset_search.cjs --query "query terms" --type image --download --out outputs/assets/<slug>
    node tools/ppt_asset_search.cjs --query "query terms" --type video --download --out outputs/assets/<slug>
    ```
+   Sources: by default (`--source auto`) the tool interleaves Pexels (only if
+   `PEXELS_API_KEY` is set — best modern/stock look), Openverse (CC/PD
+   aggregator, no key), and Wikimedia Commons (no key; strongest for landmarks,
+   history, technical subjects). Force one with
+   `--source commons|openverse|pexels`. Every result carries license/author
+   provenance — prefer CC0/CC BY/Pexels-License items and keep the assets.json
+   record with the deck.
    For a user-provided URL or local file, import it directly:
    ```bash
    node tools/ppt_asset_import.cjs --src https://example.com/photo.jpg --type image --out outputs/assets/<slug>

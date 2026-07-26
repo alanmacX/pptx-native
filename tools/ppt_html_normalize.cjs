@@ -31,7 +31,9 @@ async function main() {
     process.exit(1);
   }
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = process.env.PPT_BROWSER_WS
+    ? await chromium.connect(process.env.PPT_BROWSER_WS)
+    : await chromium.launch({ headless: true });
   const page = await browser.newPage({
     viewport: { width: args.width, height: args.height },
     deviceScaleFactor: 1,

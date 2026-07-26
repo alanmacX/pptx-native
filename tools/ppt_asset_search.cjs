@@ -16,7 +16,7 @@ const crypto = require("node:crypto");
 const COMMONS_API = "https://commons.wikimedia.org/w/api.php";
 
 function parseArgs(argv) {
-  const args = { type: "image", limit: 8, out: null, download: false };
+  const args = { type: "image", limit: 8, out: null, download: false, source: "auto" };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--query" || arg === "-q") args.query = argv[++i];
@@ -24,6 +24,7 @@ function parseArgs(argv) {
     else if (arg === "--limit") args.limit = Number(argv[++i]);
     else if (arg === "--out") args.out = argv[++i];
     else if (arg === "--download") args.download = true;
+    else if (arg === "--source") args.source = argv[++i];
     else if (arg === "--help" || arg === "-h") args.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -144,6 +145,122 @@ async function searchCommons(query, type, limit) {
   return results;
 }
 
+// Openverse (openverse.org): CC/PD images+audio aggregated from many hosts.
+// No API key for anonymous use. Better "stock photo" hit rate than Commons
+// for modern/commercial-looking subjects, same provenance discipline.
+async function searchOpenverse(query, type, limit) {
+  if (!["image", "audio", "any"].includes(type)) return [];
+  const fetchFn = mustFetch();
+  const kinds = type === "any" ? ["images", "audio"] : type === "image" ? ["images"] : ["audio"];
+  const results = [];
+  for (const kind of kinds) {
+    const url = new URL(`https://api.openverse.org/v1/${kind}/`);
+    url.searchParams.set("q", query);
+    url.searchParams.set("page_size", String(Math.min(20, Math.max(limit, 1))));
+    url.searchParams.set("license_type", "all-cc,commercial");
+    const res = await fetchFn(url, { headers: { "user-agent": "pptx-native-asset-search/1.0" } });
+    if (!res.ok) continue; // soft-fail: other sources still answer
+    const json = await res.json();
+    for (const item of json.results || []) {
+      results.push({
+        title: item.title || "",
+        mime: item.filetype ? `${kind === "audio" ? "audio" : "image"}/${item.filetype}` : "",
+        bytes: item.filesize || null,
+        width: item.width || null,
+        height: item.height || null,
+        url: item.url || "",
+        pageUrl: item.foreign_landing_url || "",
+        license: item.license ? `CC ${String(item.license).toUpperCase()} ${item.license_version || ""}`.trim() : "",
+        licenseUrl: item.license_url || "",
+        artist: item.creator || "",
+        credit: item.source || item.provider || "",
+        description: item.title || "",
+        source: `Openverse (${item.provider || "unknown"})`,
+      });
+      if (results.length >= limit) break;
+    }
+  }
+  return results.slice(0, limit);
+}
+
+// Pexels: high-quality stock photos/videos. Only used when PEXELS_API_KEY is
+// set (free key from pexels.com/api); silently absent otherwise.
+async function searchPexels(query, type, limit) {
+  const key = process.env.PEXELS_API_KEY;
+  if (!key || !["image", "video", "any"].includes(type)) return [];
+  const fetchFn = mustFetch();
+  const results = [];
+  const wantImage = type === "image" || type === "any";
+  const wantVideo = type === "video" || type === "any";
+  if (wantImage) {
+    const url = new URL("https://api.pexels.com/v1/search");
+    url.searchParams.set("query", query);
+    url.searchParams.set("per_page", String(Math.min(20, limit)));
+    const res = await fetchFn(url, { headers: { Authorization: key } });
+    if (res.ok) {
+      const json = await res.json();
+      for (const p of json.photos || []) {
+        results.push({
+          title: p.alt || "", mime: "image/jpeg", bytes: null,
+          width: p.width || null, height: p.height || null,
+          url: p.src?.large2x || p.src?.original || "", pageUrl: p.url || "",
+          license: "Pexels License", licenseUrl: "https://www.pexels.com/license/",
+          artist: p.photographer || "", credit: "Pexels",
+          description: p.alt || "", source: "Pexels",
+        });
+      }
+    }
+  }
+  if (wantVideo) {
+    const url = new URL("https://api.pexels.com/videos/search");
+    url.searchParams.set("query", query);
+    url.searchParams.set("per_page", String(Math.min(10, limit)));
+    const res = await fetchFn(url, { headers: { Authorization: key } });
+    if (res.ok) {
+      const json = await res.json();
+      for (const v of json.videos || []) {
+        const file = (v.video_files || []).sort((a, b) => (b.width || 0) - (a.width || 0))[0];
+        if (!file) continue;
+        results.push({
+          title: `pexels-video-${v.id}`, mime: file.file_type || "video/mp4", bytes: null,
+          width: file.width || null, height: file.height || null,
+          url: file.link || "", pageUrl: v.url || "",
+          license: "Pexels License", licenseUrl: "https://www.pexels.com/license/",
+          artist: v.user?.name || "", credit: "Pexels",
+          description: "", source: "Pexels",
+        });
+      }
+    }
+  }
+  return results.slice(0, limit);
+}
+
+// Query the chosen source(s). "auto" = every available source in parallel,
+// interleaved so the caller sees a diverse pool (Pexels joins only when
+// PEXELS_API_KEY is set).
+async function searchAll(source, query, type, limit) {
+  const run = (name) => {
+    if (name === "commons") return searchCommons(query, type, limit).catch(() => []);
+    if (name === "openverse") return searchOpenverse(query, type, limit).catch(() => []);
+    if (name === "pexels") return searchPexels(query, type, limit).catch(() => []);
+    throw new Error(`Unknown --source: ${name} (use commons|openverse|pexels|auto)`);
+  };
+  if (source !== "auto") return run(source);
+  const pools = await Promise.all([run("pexels"), run("openverse"), run("commons")]);
+  const merged = [];
+  for (let i = 0; merged.length < limit; i += 1) {
+    let advanced = false;
+    for (const pool of pools) {
+      if (i < pool.length && merged.length < limit) {
+        merged.push(pool[i]);
+        advanced = true;
+      }
+    }
+    if (!advanced) break;
+  }
+  return merged;
+}
+
 async function downloadAssets(results, outDir) {
   const fetchFn = mustFetch();
   fs.mkdirSync(outDir, { recursive: true });
@@ -189,7 +306,7 @@ async function main() {
     throw new Error("--type must be image, video, audio, or any");
   }
   const limit = Math.max(1, Math.min(30, Number(args.limit) || 8));
-  const results = await searchCommons(args.query, type, limit);
+  const results = await searchAll(String(args.source || "auto"), args.query, type, limit);
   const finalResults = args.download
     ? await downloadAssets(results, path.resolve(args.out || path.join("outputs", "assets", safeSlug(args.query))))
     : results;

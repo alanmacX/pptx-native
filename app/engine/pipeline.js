@@ -170,6 +170,27 @@ function buildFromHtml(html, outPptx, opts = {}) {
 
 module.exports = { lint, normalize, normalizeHtml, normalizeAndLintHtml, lintHtml, extract, compilePptx, buildFromHtml };
 
+// Share ONE Chromium across normalize/lint/extract: launch a browser server
+// and hand its ws endpoint to the child tools via PPT_BROWSER_WS (each tool
+// falls back to launching its own browser when run standalone). Cuts build
+// latency by two browser cold-starts.
+async function withSharedBrowser(fn) {
+  let server = null;
+  try {
+    const { chromium } = require("playwright");
+    server = await chromium.launchServer({ headless: true });
+    process.env.PPT_BROWSER_WS = server.wsEndpoint();
+  } catch {
+    server = null; // tools self-launch; slower but correct
+  }
+  try {
+    return fn();
+  } finally {
+    delete process.env.PPT_BROWSER_WS;
+    if (server) await server.close();
+  }
+}
+
 // CLI: node pipeline.js input.html out.pptx [--steps 0-1]
 if (require.main === module) {
   const args = process.argv.slice(2);
@@ -182,7 +203,13 @@ if (require.main === module) {
     process.exit(1);
   }
   const html = fs.readFileSync(path.resolve(input), "utf8");
-  const report = buildFromHtml(html, path.resolve(out), { steps });
-  console.log(JSON.stringify(report, null, 2));
-  process.exit(report.ok ? 0 : 2);
+  withSharedBrowser(() => buildFromHtml(html, path.resolve(out), { steps }))
+    .then((report) => {
+      console.log(JSON.stringify(report, null, 2));
+      process.exit(report.ok ? 0 : 2);
+    })
+    .catch((err) => {
+      console.error(String(err && err.stack ? err.stack : err));
+      process.exit(2);
+    });
 }
