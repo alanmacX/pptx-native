@@ -421,6 +421,16 @@ function normalizeDom() {
     const hasScale = Math.abs(scaleB - scaleA) >= 0.04;
     const hasRotate = Math.abs(drot) >= 2;
     const hasColor = !!(fromBg && toBg && fromBg !== toBg);
+    // Off-slide-scale travel with a fade = the author means Fly In: the
+    // genuine named preset (harvested tree, Animation-Pane editable) beats a
+    // compose approximation. Checked BEFORE compose so big travel wins even
+    // when scale/rotate also move a little.
+    if (fadesIn && Math.max(Math.abs(dtx), Math.abs(dty)) >= 300 && !hasColor) {
+      const from = Math.abs(dty) >= Math.abs(dtx)
+        ? (dty > 0 ? "bottom" : "top")
+        : (dtx > 0 ? "right" : "left");
+      return `entrance:flyin; from:${from}; ${timing}`;
+    }
     const channelCount = [fadesIn || fadesOut, hasTranslate, hasScale, hasRotate, hasColor].filter(Boolean).length;
     if (channelCount >= 2) {
       const parts = ["compose"];

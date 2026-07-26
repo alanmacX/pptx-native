@@ -93,11 +93,19 @@ intent directly.
 ```
 data-ppt-anim="entrance:fade; trigger:afterPrev; dur:450; delay:0"
 ```
-- `entrance:` ∈ capabilities `animation.within.entrance`
-  (fade, wipe, blinds, box, checkerboard, circle, diamond, dissolve, plus,
-  randombars, wedge, wheel) or `appear`.
-- `exit:` same set (compiles to `exit-<effect>`).
-- `emphasis:` ∈ spin / grow / shrink / pulse.
+- `entrance:` ∈ capabilities `animation.within.entrance`. Two families:
+  - filter reveals: fade, wipe, blinds, box, checkerboard, circle, diamond,
+    dissolve, plus, randombars, wedge, wheel — or `appear`.
+  - **named presets** (byte-faithful harvested PowerPoint trees; the Animation
+    Pane shows the real, human-editable named effect): `flyin`
+    (+ `from:bottom|left|right|top|…`), `floatin` / `floatdown`, `zoom`
+    (object center) / `zoomslide` (slide center), `bounce`, `swivel`,
+    `growturn`, `split`. `dur:` rescales the whole preset proportionally.
+- `exit:` filter set (compiles to `exit-<effect>`) plus named exits:
+  `flyout`, `floatout`, `zoom`, `shrinkturn`, `split`.
+- `emphasis:` ∈ spin / grow / shrink / pulse / `dim` (partial-opacity focus
+  dim, `to:0.35`, optional `from:`) / teeter / colorpulse / desaturate /
+  darken / objectcolor / complementary.
   - spin extras: `spins`, `byDeg`. scale extras: `scale` (percent).
 - `motion:` with `path:"M 0 0 L 0.2 0"` (PowerPoint relative path units).
 - `compose` for one native timing group made from concurrent primitives:
@@ -105,8 +113,16 @@ data-ppt-anim="entrance:fade; trigger:afterPrev; dur:450; delay:0"
   Use it for polished web-style entrances where fade, settle, zoom, turn, and
   color shift happen together. It compiles to native `animEffect`, `animMotion`,
   `animScale`, `animRot`, and `animClr` children.
-- `trigger:` ∈ onClick / withPrev / afterPrev / auto. **Banned triggers**: scroll,
-  hover, infinite loop (PowerPoint cannot store them).
+- Per-glyph text cascade: add `byLetter[:ms]` or `byWord[:ms]` to any
+  declaration on a textbox (typewriter, character waves — native
+  "Animate text: By letter").
+- `ease:` ∈ out (default) / in / inout / linear. An exact curve can be given
+  as `tmFilter:"0,0; .25,.07; …; 1,1"` (piecewise time remap on the effect).
+- `trigger:` ∈ onClick / withPrev / afterPrev / auto / `click(#shapeId)` —
+  the last compiles to a native interactive sequence: clicking that shape
+  plays this effect (tabs, hotspots, build-your-own reveals). **Banned
+  triggers**: scroll, hover (PowerPoint cannot store them). Infinite repeats
+  belong to `data-ppt-ambient` or a flourish-marked element, not here.
 - Media commands on `.ppt-media`: `data-ppt-anim="media:play"`,
   `media:pause`, or `media:stop` compile to native `p:cmd` timing.
 
@@ -161,6 +177,20 @@ inference classify them. Known motifs: `timeline`, `layers`, `comparison`,
 `metricCluster`, `hubSpoke` (an unknown name is reported, not silently ignored). See
 `docs/motif-choreography-proposal.md`.
 
+### Native 3D, picture crop, and ken-burns
+
+- `transform: perspective(800px) rotateY(-18deg)` (or `rotateX`) on a shape or
+  picture compiles to a native `a:scene3d` camera — geometry stays the flat
+  box, PowerPoint renders the 3D tilt. Two adjacent slides with the same
+  `data-morph` object at different angles = a native 3D card flip (Morph
+  tweens the camera).
+- `object-fit: cover` and overflow:hidden container clipping compile to
+  native picture crop (`a:srcRect`); the element's geometry becomes the
+  visible area. Two slides with the same `data-morph` image at different
+  zoom/pan states = a native ken-burns (Morph tweens the crop).
+- Morph also tweens preset-geometry corner radius and font size; gradients
+  cross-blend smoothly (not parameter-exact).
+
 ### `data-ppt-morph` (slide-to-slide 平滑)
 - Mark the same object on adjacent slides with the same `data-morph` key and the
   compiler can morph it. PowerPoint only compares adjacent slides; a page cannot
@@ -171,6 +201,11 @@ inference classify them. Known motifs: `timeline`, `layers`, `comparison`,
   identity (`data-morph`, source id, or non-generated source key), then by
   unique identical text or image source — no per-object marking needed.
 - Options: byObject / byWord / byChar.
+- Auto-advance: `advance:N` (ms) in `data-ppt-transition` makes the slide
+  advance hands-free after N ms (`type:none; advance:N` = timer only, no
+  visual transition) — this is how multi-slide Morph chains play unattended.
+  Set `advance` ≥ the slide's animation end time: exported video does not
+  wait for a still-running animation before advancing.
 
 ### Effects
 ```

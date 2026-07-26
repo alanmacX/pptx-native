@@ -100,6 +100,15 @@ For repo-local native scene JSON details, use `docs/native-authoring.md`.
 - Use `data-ppt-ambient` for background/environment motion (drift, pan, breathe,
   shimmer, path/orbit, rotate, media playback). It expands to native looping
   primitives and is exempt from elegant-repeat clamping when marked ambient.
+- The native vocabulary also includes, all fully editable in PowerPoint's
+  Animation Pane: named presets (`entrance:flyin/floatin/zoom/bounce/swivel/
+  growturn/split`, named exits, `emphasis:teeter/colorpulse/dim/…`), per-glyph
+  text cascades (`byLetter`/`byWord`), object-click triggers
+  (`trigger:click(#shape)`), hands-free advance (`advance:N` in transitions),
+  native 3D tilt (CSS `perspective()+rotateY`), and native picture crop /
+  ken-burns (`object-fit:cover`, overflow crop, morph pairs). See
+  `references/ppt-html-contract.md` §4 before inventing a workaround — the
+  ceiling is higher than the old subset.
 - Use Morph only across adjacent slides; do not mix Morph slides with same-slide
   timing.
 - Default animated decks to `data-ppt-motion-preset="elegant"`. Under this

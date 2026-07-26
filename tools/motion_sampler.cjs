@@ -188,6 +188,16 @@ function lowerSampledTrack(track) {
     return { row: { ...base, effect: "motionPath", pptPath: path } };
   }
 
+  // Off-slide-scale sampled travel with a fade = genuine Fly In (named
+  // preset beats a compose approximation for both fidelity and editability).
+  const travel = Math.max(Math.abs(dtx), Math.abs(dty));
+  if ((fadesIn || (!Number.isFinite(o0) && !Number.isFinite(o1))) && travel >= 300 && !loop) {
+    const direction = Math.abs(dty) >= Math.abs(dtx)
+      ? (dty > 0 ? "bottom" : "top")
+      : (dtx > 0 ? "right" : "left");
+    return { row: { ...base, effect: "flyin", direction } };
+  }
+
   const hasTranslate = Math.abs(dtx) >= 1 || Math.abs(dty) >= 1;
   const hasScale = Math.abs(s1 - s0) >= 0.04;
   const hasRotate = Math.abs(drot) >= 2;
