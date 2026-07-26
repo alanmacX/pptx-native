@@ -146,6 +146,14 @@ staggered sequence of native timing effects. The sequence does not carry visual
 style; children still get their own CSS tokens. Use it for cascades, handoffs,
 and grouped reveals where timing continuity matters.
 
+Expansion is **cluster-atomic**: targets that share a direct-child wrapper of
+the container — or sit ≥60% inside a card-sized sibling (≤25% of the stage) —
+form one perceptual unit and enter on ONE delay slot with one motion vector,
+so a card never separates from its own chip/text. The stagger `gap` applies
+between units, not between every raw element. A full-width panel (>25% of the
+stage) never absorbs the bullet lines on top of it, so list builds keep their
+per-line stagger.
+
 > **Coordinate-frame trap.** A positioned container (`.ppt-stagger`/`.ppt-group`
 > at some `left/top`) establishes a local frame: its children's `left/top` are
 > relative to the container. If you then place *overlay* siblings — a number,
@@ -181,6 +189,12 @@ animation strings. Motifs carry no visual style. Mark children with
 inference classify them. Known motifs: `timeline`, `layers`, `comparison`,
 `metricCluster`, `hubSpoke` (an unknown name is reported, not silently ignored). See
 `docs/motif-choreography-proposal.md`.
+
+`data-ppt-role="table"` on a container marks a shape-drawn data lattice
+(spec matrix, legend row, calendar). The linter's card-grid monotony check
+(`AI_CARD_GRID_MONOTONY`) skips everything inside it — same-size cells are the
+POINT of a table, not a template tell. Use it only for genuine data lattices,
+not to silence the warning on decorative card grids.
 
 ### Native 3D, picture crop, and ken-burns
 

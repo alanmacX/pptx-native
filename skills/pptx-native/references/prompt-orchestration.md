@@ -1,9 +1,16 @@
 # Prompt Orchestration
 
 Use this when the user's request is broad, terse, or taste-sensitive. Before
-writing HTML, turn the request into an internal implementation brief. Do not ask
-the user to review this brief unless required facts are missing; the point is to
-make rough prompts compile into deliberate decks.
+writing HTML, turn the request into an internal implementation brief, then two
+concrete plans — the COPY PLAN (every word that will appear on a slide) and the
+MOTION SCORE (every entrance, build, and transition). Do not ask the user to
+review these unless required facts are missing; the point is to make rough
+prompts compile into deliberate decks.
+
+Order is mandatory when building from scratch:
+brief → copy plan → motion score → plan gate → author HTML → compile.
+Writing HTML first and patching copy/motion afterwards is how decks end up
+with filler text and per-element fade piles.
 
 ## Internal Brief
 
@@ -21,6 +28,46 @@ Appearance system:
 Asset strategy:
 Validation plan:
 ```
+
+## Copy Plan (write the actual words before any HTML)
+
+For every slide, write the final on-slide text — not placeholders, not "TBD":
+
+```text
+- slide N — title: <verdict-first, ≤20 CJK chars, carries a number or stance>
+  blocks: <each on-slide text block, verbatim, within the density budget>
+  notes: <the prose/evidence that stays OFF the slide, verbatim or outline>
+  visual: <the one number / image / diagram this slide is built around>
+```
+
+Check the whole plan at once before moving on: titles read in order must tell
+the complete argument (the horizontal test); every block obeys the density
+budget below; copy hygiene rules from design-and-motion.md apply here, at
+plan time — de-jargon, specifics over abstractions, no banned scaffolds.
+Fixing words in the plan costs one line; fixing them after authoring costs a
+recompile cycle.
+
+## Motion Score (choreograph before authoring, one line per slide)
+
+```text
+- slide N — grammar: <compose | sequence | motif:<name> | ambient | none>
+  hero: <the ONE moment this slide is allowed to spend motion on, or "none">
+  build order: <reading order of units; what clusters together as one body>
+  in-transition: <from previous slide: morph (name persisting objects) |
+                  push/wipe/fade | cut>
+```
+
+Then read the score column by column, not slide by slide:
+
+- **Transitions row**: mark every adjacent pair where ≥1 object persists —
+  those are Morph candidates (name the `data-morph` keys now). A deck-long
+  chain of `fade` is a planning failure, and so is Morph everywhere.
+- **Hero row**: one hero per slide, and not the same hero move every slide.
+  Slides may (should) have "none" — a deck where everything animates reads
+  louder than one where the right thing does.
+- **Build-order row**: order = reading order. Anything entering together must
+  be planned as a cluster here (card + its text = one body), so the HTML gets
+  wrappers or motifs instead of loose absolute siblings.
 
 ## Narrative Arc
 
@@ -80,10 +127,30 @@ must advance the arc or be cut.
   glow, blur/reflection, line arrows/dashes, text hierarchy, and image/media
   treatment.
 
+## Plan Gate (run before authoring)
+
+Do not start HTML until every line passes:
+
+1. Titles-only read-through tells the whole argument, in order.
+2. Every block in the copy plan is inside the density budget (≤4 blocks,
+   ≤45 CJK-equivalent chars) — the `AI_TEXT_WALL` lint will enforce this
+   later, but catching it in the plan is one edit instead of a re-author.
+3. Title placement varies across the deck; no English eyebrows on a CJK deck;
+   footnotes only where a source needs citing (`AI_TITLE_LOCKUP_MONOTONY` /
+   `AI_EN_EYEBROW` / `AI_FOOTNOTE_FURNITURE`).
+4. Each slide has exactly one motion grammar and at most one hero moment.
+5. Every Morph candidate pair has its persisting objects named; every cluster
+   in the build order maps to a wrapper/motif in the HTML you are about to
+   write.
+6. Layout silhouettes vary (not the same card grid every slide —
+   `AI_CARD_GRID_MONOTONY`), and the deck has its images/diagrams decided
+   (`AI_IMAGE_SCARCITY`): concrete topic → 1–2 real sourced images; abstract
+   topic → diagrams/type, as a deliberate choice.
+
 ## Implementation Prompt
 
-After the brief, internally restate the build task in direct implementation
-language:
+After the plans pass the gate, internally restate the build task in direct
+implementation language:
 
 ```text
 Build a native-editable PPTX using pptx-native. Author HTML with explicit

@@ -547,13 +547,48 @@ async function main() {
     // taste nudges with concrete fixes, not compile blockers.
     {
       const slideRects = slides.map((s) => s.getBoundingClientRect());
-      const hasCJK = (t) => /[㐀-鿿]/.test(t || "");
+      // "CJK deck" includes kana and hangul: the wide-char budget and the
+      // eyebrow check apply to all East Asian decks, not just Chinese.
+      const hasCJK = (t) => /[㐀-鿿぀-ヿ가-힯]/.test(t || "");
       const deckIsCJK = hasCJK(document.body ? document.body.textContent || "" : "");
+      // East Asian WIDE chars (hanzi incl. Ext-B, kana, hangul, fullwidth
+      // punctuation) count 1 unit, anything else 0.5 — the 45-units budget
+      // from prompt-orchestration.md maps to ~45 wide chars or ~90 latin.
+      const WIDE = /[　-〿぀-ヿㇰ-ㇿ㐀-鿿가-힯豈-﫿＀-｠￠-￦]|[\u{20000}-\u{2FFFD}]/u;
+      const charUnits = (t) => {
+        let units = 0;
+        for (const ch of (t || "").replace(/\s+/g, "")) units += WIDE.test(ch) ? 1 : 0.5;
+        return Math.round(units);
+      };
+      const filledEl = (el) => {
+        const st = getComputedStyle(el);
+        const bg = st.backgroundColor || "";
+        const m = bg.match(/rgba?\(([^)]+)\)/);
+        // Non-rgb serializations (oklch/lab/color()) are opaque paints.
+        const alpha = m ? Number(m[1].split(",")[3] ?? 1) : (bg && bg !== "transparent" ? 1 : 0);
+        return alpha > 0.03 || /gradient/.test(st.backgroundImage || "");
+      };
       let topLeftTitles = 0;
       let footnoteSlides = 0;
       let gridSlides = 0;
       slides.forEach((s, i) => {
         const rect = slideRects[i];
+        // same-size rectangle grid — checked before the texts bail-out so
+        // pure-shape card pages (labels written inside shapes) still count.
+        // Cards built as filled textboxes count too, and 3-in-a-row (the
+        // classic AI three-card band) is enough per slide. Legit data
+        // lattices opt out via data-ppt-role="table" on their container.
+        const shapes = [
+          ...Array.from(s.querySelectorAll(".ppt-shape")),
+          ...Array.from(s.querySelectorAll(".ppt-textbox")).filter(filledEl),
+        ]
+          .filter((el) => !el.closest('[data-ppt-role="table"]'))
+          .map((el) => el.getBoundingClientRect())
+          .filter((r) => r.width > 60 && r.height > 40);
+        const sizeKey = (r) => `${Math.round(r.width / 8)}x${Math.round(r.height / 8)}`;
+        const sizes = {};
+        shapes.forEach((r) => { sizes[sizeKey(r)] = (sizes[sizeKey(r)] || 0) + 1; });
+        if (Object.values(sizes).some((n) => n >= 3)) gridSlides += 1;
         const texts = Array.from(s.querySelectorAll(".ppt-textbox"))
           .map((el) => ({ el, r: el.getBoundingClientRect(), fs: parseFloat(getComputedStyle(el).fontSize) || 0 }))
           .filter((t) => (t.el.textContent || "").trim());
@@ -574,30 +609,52 @@ async function main() {
               "Delete it, or use a Chinese context label only where it aids scanning.");
           }
         }
-        if (texts.some((t) => t.fs <= 13 && (t.r.top - rect.top) / Math.max(1, rect.height) > 0.88)) footnoteSlides += 1;
-        // same-size rounded-rect grid
-        const shapes = Array.from(s.querySelectorAll(".ppt-shape"))
-          .map((el) => el.getBoundingClientRect())
-          .filter((r) => r.width > 60 && r.height > 40);
-        const sizeKey = (r) => `${Math.round(r.width / 8)}x${Math.round(r.height / 8)}`;
-        const sizes = {};
-        shapes.forEach((r) => { sizes[sizeKey(r)] = (sizes[sizeKey(r)] || 0) + 1; });
-        if (Object.values(sizes).some((n) => n >= 4)) gridSlides += 1;
+        const isFootnote = (t) => t.fs <= 13 && (t.r.top - rect.top) / Math.max(1, rect.height) > 0.88;
+        if (texts.some(isFootnote)) footnoteSlides += 1;
+        // Text-wall check against the authoring budget (prompt-orchestration.md
+        // Content Density): ≤4 body blocks per slide, ≤45 CJK-equivalent chars
+        // per block. Fires per slide with 50% slack on the per-block budget.
+        // Footnotes sit outside the budget ("Footnotes: one line, muted") —
+        // their abuse is AI_FOOTNOTE_FURNITURE's job, not this rule's.
+        const body = texts.filter((t) => t !== title && !isFootnote(t));
+        const proseBlocks = body.filter((t) => charUnits(t.el.textContent) > 20);
+        const overBlocks = body.filter((t) => charUnits(t.el.textContent) > 68);
+        if (proseBlocks.length > 4 || overBlocks.length > 0) {
+          const worst = Math.max(0, ...body.map((t) => charUnits(t.el.textContent)));
+          add(s, "warn", "AI_TEXT_WALL",
+            `${proseBlocks.length} prose blocks, longest ${worst} chars — budget is ≤4 blocks of ≤45 CJK-equivalent chars.`,
+            "The slide carries the verdict; move the prose to speaker notes, keep one claim + a number/image per slide (prompt-orchestration.md Content Density).");
+        }
       });
-      if (slides.length >= 4 && topLeftTitles >= slides.length - 1) {
+      // Deck-level monotony thresholds: the tells read as AI well before they
+      // hit every page, so half the deck (min 3 slides) is enough to warn.
+      // The min-3 floor also keeps 1-2 slide decks quiet on its own.
+      const monotony = Math.max(3, Math.ceil(slides.length * 0.5));
+      if (topLeftTitles >= monotony) {
         add(slides[0], "warn", "AI_TITLE_LOCKUP_MONOTONY",
           `The big-title-top-left lockup repeats on ${topLeftTitles}/${slides.length} slides.`,
           "Vary title placement: centered cover, left-third split, bottom-anchored image slide, one full-bleed statement slide.");
       }
-      if (slides.length >= 4 && footnoteSlides >= Math.ceil(slides.length * 0.75)) {
+      if (footnoteSlides >= monotony) {
         add(slides[0], "warn", "AI_FOOTNOTE_FURNITURE",
           `${footnoteSlides}/${slides.length} slides carry a bottom footnote strip.`,
           "Footnotes only where a source needs citing — not as page furniture.");
       }
-      if (slides.length >= 4 && gridSlides >= Math.ceil(slides.length * 0.5)) {
+      if (gridSlides >= monotony) {
         add(slides[0], "warn", "AI_CARD_GRID_MONOTONY",
           `${gridSlides}/${slides.length} slides are same-size rectangle grids.`,
           "Vary unit sizes by importance, break one grid with a full-width band, a diagram, or a single strong number.");
+      }
+      // Image scarcity: an all-text-and-boxes deck is itself a tell. Only
+      // sources the compiler actually turns into native pictures count —
+      // CSS background url() and svg <image> are silently DROPPED by
+      // html2scene, so they must not mask a genuinely image-free deck.
+      const imageCount = slides.reduce((n, s) =>
+        n + s.querySelectorAll("img, .ppt-picture, .ppt-media").length, 0);
+      if (slides.length >= 6 && imageCount === 0) {
+        add(slides[0], "warn", "AI_IMAGE_SCARCITY",
+          `0 images across ${slides.length} slides.`,
+          "Concrete topics deserve 1–2 real, sourced images (tools/ppt_asset_search.cjs); keep a deck image-free only as a deliberate choice for abstract content (asset-search-and-media.md).");
       }
       // High-signal robotic-copy scan (full banlist: design-and-motion.md).
       const banned = [

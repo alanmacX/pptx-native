@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { margin:0; background:#0f172a; }
+    .ppt-slide { position:relative; width:1280px; height:720px; overflow:hidden; }
+    .ppt-shape, .ppt-textbox { position:absolute; }
+    .card { border-radius:18px; }
+    .chip { border-radius:999px; }
+  </style>
+</head>
+<body>
+  <!-- Slide 1 — STRUCTURAL clustering: each wrapper div is one perceptual unit.
+       Expected: 3 delay slots, each with 3 members (card bg + chip + text)
+       sharing one delay and one motion vector. -->
+  <section class="ppt-slide" id="s1" style="background:#F7F4ED;">
+    <div class="ppt-textbox" id="t1"
+      data-ppt-anim="compose; opacity:in; y:14; dur:520; ease:out"
+      style="left:92px;top:64px;width:760px;height:72px;color:#10201F;font-size:44px;font-weight:800;">
+      Structural cluster smoke
+    </div>
+    <div id="seq-wrapped" data-ppt-sequence="stagger; gap:120; y:24; scaleFrom:.96; scaleTo:1; dur:520; ease:out"
+      style="position:absolute;left:0;top:0;width:1280px;height:720px;">
+      <div style="position:absolute;left:92px;top:240px;width:320px;height:200px;">
+        <div class="ppt-shape card" data-shape="roundRect" style="left:0;top:0;width:320px;height:200px;background:#FFFFFF;"></div>
+        <div class="ppt-shape chip" data-shape="roundRect" style="left:20px;top:20px;width:96px;height:28px;background:#DDEDE8;"></div>
+        <div class="ppt-textbox" style="left:20px;top:70px;width:280px;height:80px;color:#10201F;font-size:20px;">Unit one body copy</div>
+      </div>
+      <div style="position:absolute;left:480px;top:240px;width:320px;height:200px;">
+        <div class="ppt-shape card" data-shape="roundRect" style="left:0;top:0;width:320px;height:200px;background:#E7F5F1;"></div>
+        <div class="ppt-shape chip" data-shape="roundRect" style="left:20px;top:20px;width:96px;height:28px;background:#FFFFFF;"></div>
+        <div class="ppt-textbox" style="left:20px;top:70px;width:280px;height:80px;color:#10201F;font-size:20px;">Unit two body copy</div>
+      </div>
+      <div style="position:absolute;left:868px;top:240px;width:320px;height:200px;">
+        <div class="ppt-shape card" data-shape="roundRect" style="left:0;top:0;width:320px;height:200px;background:#FFF2E8;"></div>
+        <div class="ppt-shape chip" data-shape="roundRect" style="left:20px;top:20px;width:96px;height:28px;background:#FFFFFF;"></div>
+        <div class="ppt-textbox" style="left:20px;top:70px;width:280px;height:80px;color:#10201F;font-size:20px;">Unit three body copy</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 2 — GEOMETRIC clustering: flat absolute siblings, no wrappers.
+       Each text/chip sits ≥60% inside its card bg. Expected: 3 slots × 3 members. -->
+  <section class="ppt-slide" id="s2" style="background:#F2F5F7;">
+    <div class="ppt-textbox" id="t2"
+      data-ppt-anim="compose; opacity:in; y:14; dur:520; ease:out"
+      style="left:92px;top:64px;width:760px;height:72px;color:#10201F;font-size:44px;font-weight:800;">
+      Geometric cluster smoke
+    </div>
+    <div id="seq-flat" data-ppt-sequence="stagger; gap:120; y:24; scaleFrom:.96; scaleTo:1; dur:520; ease:out"
+      style="position:absolute;left:0;top:0;width:1280px;height:720px;">
+      <div class="ppt-shape card" data-shape="roundRect" style="left:92px;top:240px;width:320px;height:200px;background:#FFFFFF;"></div>
+      <div class="ppt-shape chip" data-shape="roundRect" style="left:112px;top:260px;width:96px;height:28px;background:#DDEDE8;"></div>
+      <div class="ppt-textbox" style="left:112px;top:310px;width:280px;height:80px;color:#10201F;font-size:20px;">Flat unit one</div>
+      <div class="ppt-shape card" data-shape="roundRect" style="left:480px;top:240px;width:320px;height:200px;background:#E7F5F1;"></div>
+      <div class="ppt-shape chip" data-shape="roundRect" style="left:500px;top:260px;width:96px;height:28px;background:#FFFFFF;"></div>
+      <div class="ppt-textbox" style="left:500px;top:310px;width:280px;height:80px;color:#10201F;font-size:20px;">Flat unit two</div>
+      <div class="ppt-shape card" data-shape="roundRect" style="left:868px;top:240px;width:320px;height:200px;background:#FFF2E8;"></div>
+      <div class="ppt-shape chip" data-shape="roundRect" style="left:888px;top:260px;width:96px;height:28px;background:#FFFFFF;"></div>
+      <div class="ppt-textbox" style="left:888px;top:310px;width:280px;height:80px;color:#10201F;font-size:20px;">Flat unit three</div>
+    </div>
+  </section>
+
+  <!-- Slide 3 — PANEL GUARD: a full-width panel (>25% of the stage) with a
+       bullet list on it. The panel must NOT swallow the list build.
+       Expected: 5 slots — panel, then each of 4 lines on its own slot. -->
+  <section class="ppt-slide" id="s3" style="background:#F7F4ED;">
+    <div class="ppt-textbox" id="t3"
+      data-ppt-anim="compose; opacity:in; y:14; dur:520; ease:out"
+      style="left:92px;top:64px;width:760px;height:72px;color:#10201F;font-size:44px;font-weight:800;">
+      Panel guard smoke
+    </div>
+    <div id="seq-panel" data-ppt-sequence="stagger; gap:110; y:18; dur:480; ease:out"
+      style="position:absolute;left:0;top:0;width:1280px;height:720px;">
+      <div class="ppt-shape" data-shape="roundRect" style="left:120px;top:180px;width:1040px;height:460px;border-radius:24px;background:#FFFFFF;"></div>
+      <div class="ppt-textbox" style="left:170px;top:240px;width:900px;height:44px;color:#10201F;font-size:24px;">First bullet line stays on its own slot</div>
+      <div class="ppt-textbox" style="left:170px;top:330px;width:900px;height:44px;color:#10201F;font-size:24px;">Second bullet line keeps the build</div>
+      <div class="ppt-textbox" style="left:170px;top:420px;width:900px;height:44px;color:#10201F;font-size:24px;">Third bullet line is not swallowed</div>
+      <div class="ppt-textbox" style="left:170px;top:510px;width:900px;height:44px;color:#10201F;font-size:24px;">Fourth bullet line closes the list</div>
+    </div>
+  </section>
+
+  <!-- Slide 4 — NESTED PANEL GUARD: same full-width panel, but the bullets are
+       the panel's own DOM children (the layout the contract's coordinate-frame
+       rule recommends). The panel must still not swallow the list build.
+       Expected: 5 slots — panel + 4 lines. -->
+  <section class="ppt-slide" id="s4" style="background:#F2F5F7;">
+    <div class="ppt-textbox" id="t4"
+      data-ppt-anim="compose; opacity:in; y:14; dur:520; ease:out"
+      style="left:92px;top:64px;width:760px;height:72px;color:#10201F;font-size:44px;font-weight:800;">
+      Nested panel guard smoke
+    </div>
+    <div id="seq-nested" data-ppt-sequence="stagger; gap:110; y:18; dur:480; ease:out"
+      style="position:absolute;left:0;top:0;width:1280px;height:720px;">
+      <div class="ppt-shape" data-shape="roundRect" style="left:120px;top:180px;width:1040px;height:460px;border-radius:24px;background:#FFFFFF;">
+        <div class="ppt-textbox" style="left:50px;top:60px;width:900px;height:44px;color:#10201F;font-size:24px;">Nested line one keeps its slot</div>
+        <div class="ppt-textbox" style="left:50px;top:150px;width:900px;height:44px;color:#10201F;font-size:24px;">Nested line two keeps the build</div>
+        <div class="ppt-textbox" style="left:50px;top:240px;width:900px;height:44px;color:#10201F;font-size:24px;">Nested line three is not swallowed</div>
+        <div class="ppt-textbox" style="left:50px;top:330px;width:900px;height:44px;color:#10201F;font-size:24px;">Nested line four closes the list</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5 — SINGLE LAYOUT WRAPPER: the whole list sits inside ONE oversized
+       layout div (common flex-column authoring). The wrapper is a frame, not a
+       unit — the rows must keep their own stagger. Expected: 4 slots. -->
+  <section class="ppt-slide" id="s5" style="background:#F7F4ED;">
+    <div class="ppt-textbox" id="t5"
+      data-ppt-anim="compose; opacity:in; y:14; dur:520; ease:out"
+      style="left:92px;top:64px;width:760px;height:72px;color:#10201F;font-size:44px;font-weight:800;">
+      Layout wrapper smoke
+    </div>
+    <div id="seq-wrapper" data-ppt-sequence="stagger; gap:120; y:18; dur:480; ease:out"
+      style="position:absolute;left:0;top:0;width:1280px;height:720px;">
+      <div style="position:absolute;left:140px;top:200px;width:1000px;height:420px;">
+        <div class="ppt-textbox" style="left:30px;top:20px;width:900px;height:44px;color:#10201F;font-size:24px;">Row one enters on its own slot</div>
+        <div class="ppt-textbox" style="left:30px;top:120px;width:900px;height:44px;color:#10201F;font-size:24px;">Row two follows the stagger</div>
+        <div class="ppt-textbox" style="left:30px;top:220px;width:900px;height:44px;color:#10201F;font-size:24px;">Row three is not collapsed</div>
+        <div class="ppt-textbox" style="left:30px;top:320px;width:900px;height:44px;color:#10201F;font-size:24px;">Row four closes the cascade</div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

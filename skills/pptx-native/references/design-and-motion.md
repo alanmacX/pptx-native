@@ -134,8 +134,13 @@ enforces the first three; reach for the rest deliberately:
 Hard rules that make the combos read premium:
 
 - **Clusters are atomic.** A card and everything on it enters as ONE body —
-  identical delay, direction, easing (the motif engine enforces this). A
-  micro-cascade inside a unit is ≤60ms and inherits the unit's direction.
+  identical delay, direction, easing. The engine enforces this on BOTH motif
+  pages and plain `data-ppt-sequence` pages: targets sharing a wrapper (or
+  sitting ≥60% inside a card-sized host, ≤25% of the stage) collapse into one
+  delay slot. A full-width panel never swallows the bullet build on top of it,
+  so list builds keep their stagger. A micro-cascade inside a unit is ≤60ms
+  and inherits the unit's direction. Regression guard:
+  `node tools/ppt_motion_gates.cjs`.
 - **Origin continuity.** New elements grow FROM their semantic parent (spine
   anchor, hub, trigger) — never from screen edges or their own center when a
   parent exists. Travel for ordinary entrances is 2–3% of slide height;
@@ -154,19 +159,32 @@ Hard rules that make the combos read premium:
 
 ## Anti-AI Layout Tells (from owner review — treat as blockers)
 
-- **Title lockup monotony**: the big-title-top-left + small-eyebrow + bottom
-  footnote lockup on EVERY slide is the #1 tell. Vary title placement across
-  the deck (centered cover, left-third splits, bottom-anchored image slides,
+The linter enforces these as `AI_*` warnings; the build workflow requires
+resolving them (or keeping a slide only with a stated reason) before shipping.
+Deck-level monotony rules fire once HALF the deck (min 3 slides) shows the
+tell — they read as AI well before they hit every page.
+
+- **Title lockup monotony** (`AI_TITLE_LOCKUP_MONOTONY`, `AI_EN_EYEBROW`,
+  `AI_FOOTNOTE_FURNITURE`): the big-title-top-left + small-eyebrow + bottom
+  footnote lockup repeated across the deck is the #1 tell. Vary title
+  placement (centered cover, left-third splits, bottom-anchored image slides,
   an occasional full-bleed statement slide). English eyebrows on Chinese decks
   are banned outright. Footnotes only where a source needs citing — not as
   furniture.
-- **Rectangle-grid monotony**: repeated same-size rounded-rect cards slide
-  after slide reads as template output. Vary unit sizes by importance (hero
-  metric bigger), break grids with a full-width band or a diagram, let one
-  slide be a single strong number. Cards are A layout tool, not THE layout.
-- **Text walls + meaningless charts**: if a chart doesn't prove the title,
-  cut it. Prefer one real image (sourced via asset search) or one diagram
-  over decorative stat tiles. Slides carry verdicts; notes carry prose.
+- **Rectangle-grid monotony** (`AI_CARD_GRID_MONOTONY`): repeated same-size
+  cards slide after slide reads as template output — three-in-a-row is already
+  a grid, and cards built as filled textboxes count. Vary unit sizes by
+  importance (hero metric bigger), break grids with a full-width band or a
+  diagram, let one slide be a single strong number. Cards are A layout tool,
+  not THE layout.
+- **Text walls + meaningless charts** (`AI_TEXT_WALL`): the density budget is
+  ≤4 body blocks per slide, ≤45 CJK-equivalent chars per block
+  (prompt-orchestration.md); the lint fires past it. If a chart doesn't prove
+  the title, cut it. Slides carry verdicts; notes carry prose.
+- **Image scarcity** (`AI_IMAGE_SCARCITY`): a multi-slide deck with zero
+  images reads text-and-boxes AI. Concrete topics deserve 1–2 real, sourced
+  images (asset search); staying image-free is legitimate only as a deliberate
+  choice for abstract content.
 
 ## Copy And Preset Hygiene (anti-AI writing rules)
 

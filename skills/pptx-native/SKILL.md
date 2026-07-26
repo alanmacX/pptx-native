@@ -32,22 +32,35 @@ slides. Unsupported native gaps must be reported as losses, never silently faked
    authoring. For vague prompts, infer a complete brief and keep moving instead
    of asking for review unless content is genuinely missing. Use
    `references/prompt-orchestration.md` for the brief shape.
-4. Author the deck.
+4. Plan before authoring — when building a deck from scratch this stage is
+   mandatory, not optional: write the COPY PLAN (the final words of every
+   title/block/note, checked against the density budget and copy hygiene) and
+   the MOTION SCORE (per-slide grammar + hero moment + build order, plus the
+   cross-slide transition row with Morph pairs named), then run the Plan Gate —
+   all in `references/prompt-orchestration.md`. HTML comes after the plans
+   pass, never before.
+5. Author the deck.
    - For animated slides, declare the choreography contract on the slide:
      `data-ppt-motion-preset="elegant"` plus `data-ppt-motion-intent="<intent>"`.
      The normalizer can infer these, but explicit intent makes the output steadier.
-5. Compile:
+6. Compile:
    `skills/pptx-native/scripts/build.sh <input.html> <output.pptx>`
-6. Read the JSON report. Iterate until `ok:true`, validation errors are empty,
+7. Read the JSON report. Iterate until `ok:true`, validation errors are empty,
    and there are no unintended losses. Then read the lint `violations`: resolve
    every `LAYOUT_*` warning too. These flag silent misalignment (content spilling
    out of its card/panel, text running off-slide) that a clean compile does NOT
    catch — do not ship a deck that still has them.
+   Treat `AI_*` warnings as blockers as well: they flag the layouts and copy
+   that read machine-generated (title lockup repeated across the deck, footnote
+   furniture, same-size card grids, text walls over the density budget, an
+   all-text zero-image deck, robotic phrasing). Fix the slide, or keep it only
+   with a deliberate, stated reason — never ship them unread. The full ruleset
+   and the fixes live in `references/design-and-motion.md` (Anti-AI Tells).
    Run the automated gates directly; do not stop to ask the user for PPTX
    conversion/animation-review permission. If a local PowerPoint visual export is
    unavailable because of app permissions, keep the text gates moving and report
    that visual QA was unavailable.
-7. Verify the layout for real — this is mandatory, not optional. When
+8. Verify the layout for real — this is mandatory, not optional. When
    re-exporting after a rebuild, `pkill -x "Microsoft PowerPoint"` first —
    an open stale document silently re-exports the OLD deck. `ok:true` and
    `0 losses` validate the COMPILE, not the layout: a deck can compile perfectly

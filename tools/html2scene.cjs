@@ -692,13 +692,37 @@ function extractSlide(opts) {
       } else {
         candidates = [...el.querySelectorAll(COMPONENT_SEL)];
       }
+      // Same cluster law as motifs: one perceptual unit (a card + everything
+      // on it) enters as one body. The unit root is the HIGHEST ancestor
+      // under the sequence container that is still card-sized (≤25% of the
+      // stage) — a full-width panel or a lone layout wrapper is a frame, not
+      // a unit, so descending past it keeps a panel from swallowing the
+      // bullet build written as its children and keeps a single flex/grid
+      // wrapper from collapsing the whole list into one delay slot.
+      const stageArea = Math.max(1, stageRect.width * stageRect.height);
+      const unitIds = new Map();
+      const clusterIdOf = (c) => {
+        let best = null;
+        for (let n = c; n && n !== el; n = n.parentElement) {
+          const r = n.getBoundingClientRect();
+          if (r.width * r.height <= stageArea * 0.25) best = n;
+        }
+        if (!best) return null; // oversized element (panel, hero) clusters alone
+        if (!unitIds.has(best)) unitIds.set(best, "u" + unitIds.size);
+        return unitIds.get(best);
+      };
       const targets = [];
+      const items = [];
       for (const candidate of candidates) {
         if (!candidate.matches(COMPONENT_SEL)) continue;
         const key = animationTargetKeyFor(candidate);
-        if (key && !targets.includes(key)) targets.push(key);
+        if (!key || targets.includes(key)) continue;
+        targets.push(key);
+        const b = toStageRect(candidate.getBoundingClientRect());
+        const isLine = candidate.classList.contains("ppt-line") || candidate.tagName.toLowerCase() === "svg" || b.h <= 6 || b.w <= 6;
+        items.push({ key, cluster: clusterIdOf(candidate) || key, cx: b.x + b.w / 2, cy: b.y + b.h / 2, w: b.w, h: b.h, isLine });
       }
-      if (targets.length) sequences.push({ raw, targets });
+      if (targets.length) sequences.push({ raw, targets, items });
     }
     return sequences;
   };
@@ -1511,7 +1535,8 @@ function resolveAfterPrev(rows) {
 // Group flattened motif items into visual CLUSTERS (a card + everything on
 // it). Choreography law: clusters are atomic — every member shares the same
 // delay and the same motion vector, so a card never separates from its text.
-function motifClusters(items) {
+function motifClusters(items, opts = {}) {
+  const maxHostArea = numberOr(opts.maxHostArea, Infinity);
   // Pass 1 — structural: items sharing a direct-child wrapper of the motif
   // container (in-page cluster id) form one group.
   const map = new Map();
@@ -1521,6 +1546,21 @@ function motifClusters(items) {
     map.get(id).members.push(it);
   }
   const groups = [...map.values()];
+  // Structural guard (mirrors the sampler's unit-root rule, and covers older
+  // scene JSON): a frame-sized member (over maxHostArea) is a backdrop, not
+  // part of a unit — split it out so it cannot zero the unit's stagger.
+  if (maxHostArea !== Infinity) {
+    const split = [];
+    for (const g of groups) {
+      if (g.members.length < 2) continue;
+      const big = g.members.filter((m) => m.w * m.h > maxHostArea);
+      if (big.length && big.length < g.members.length) {
+        g.members = g.members.filter((m) => m.w * m.h <= maxHostArea);
+        big.forEach((m, i) => split.push({ id: `${g.id}/big${i}`, members: [m] }));
+      }
+    }
+    groups.push(...split);
+  }
   const refresh = (cl) => {
     const rootItem = [...cl.members].sort((a, b) => (b.w * b.h) - (a.w * a.h))[0];
     cl.cx = rootItem.cx;
@@ -1547,6 +1587,7 @@ function motifClusters(items) {
   for (let i = 0; i < byArea.length; i += 1) {
     const host = byArea[i];
     if (merged.has(host) || host.isLine) continue;
+    if (host.w * host.h > maxHostArea) continue;
     for (let j = i + 1; j < byArea.length; j += 1) {
       const small = byArea[j];
       if (merged.has(small) || small.isLine) continue;
@@ -1591,7 +1632,7 @@ function timelineMotif(motif) {
   }
   const spineLead = spineItem ? spineDur - overlap : 0;
 
-  const clusters = motifClusters(items.filter((it) => it !== spineItem));
+  const clusters = motifClusters(items.filter((it) => it !== spineItem), { maxHostArea: motif.maxHostArea });
   clusters.sort((a, b) => (axis === "x" ? a.cx - b.cx : a.cy - b.cy));
   if (from === "right" || from === "bottom") clusters.reverse();
   clusters.forEach((cl, i) => {
@@ -1634,7 +1675,7 @@ function layersMotif(motif) {
   const gap = numberOr(firstDefined(p.gap, p.stagger), 70);
   const baseDelay = numberOr(p.delay, 0);
   const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
-  const clusters = motifClusters(motif.items).sort((a, b) => a.cy - b.cy);
+  const clusters = motifClusters(motif.items, { maxHostArea: motif.maxHostArea }).sort((a, b) => a.cy - b.cy);
   const rows = [];
   let first = true;
   clusters.forEach((cl, i) => {
@@ -1660,7 +1701,7 @@ function comparisonMotif(motif) {
   const gap = numberOr(firstDefined(p.gap, p.stagger), 120);
   const baseDelay = numberOr(p.delay, 0);
   const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
-  const clusters = motifClusters(motif.items);
+  const clusters = motifClusters(motif.items, { maxHostArea: motif.maxHostArea });
   const xs = clusters.map((cl) => cl.cx);
   const mid = xs.length ? (Math.min(...xs) + Math.max(...xs)) / 2 : 0;
   const center = clusters.filter((cl) => cl.role === "center");
@@ -1697,7 +1738,7 @@ function metricClusterMotif(motif) {
   const gap = numberOr(firstDefined(p.gap, p.stagger), 90);
   const baseDelay = numberOr(p.delay, 0);
   const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
-  const clusters = motifClusters(motif.items).sort((a, b) => a.cy - b.cy || a.cx - b.cx);
+  const clusters = motifClusters(motif.items, { maxHostArea: motif.maxHostArea }).sort((a, b) => a.cy - b.cy || a.cx - b.cx);
   const rows = [];
   let first = true;
   clusters.forEach((cl, i) => {
@@ -1726,7 +1767,7 @@ function hubSpokeMotif(motif) {
   const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
   const items = motif.items || [];
   const spokeItems = items.filter((it) => it.role === "spoke" || (it.isLine && it.role !== "center"));
-  const clusters = motifClusters(items.filter((it) => !spokeItems.includes(it)));
+  const clusters = motifClusters(items.filter((it) => !spokeItems.includes(it)), { maxHostArea: motif.maxHostArea });
   const spokes = spokeItems;
   const nonLine = clusters;
   let center = nonLine.find((cl) => cl.role === "center");
@@ -1820,9 +1861,13 @@ const MOTIF_REGISTRY = {
 
 function declaredPptMotifs(slide, elements) {
   const rows = [];
+  const stageArea = numberOr(slide.stage && slide.stage.width, 1280) * numberOr(slide.stage && slide.stage.height, 720);
   for (const motif of slide.motifs || []) {
     const fn = MOTIF_REGISTRY[motif && motif.name];
     if (!fn) continue;
+    // Same card-sized host cap as the sequence path: a frame-sized backdrop
+    // must not swallow the units laid out on top of it.
+    motif.maxHostArea = stageArea * 0.25;
     rows.push(...fn(motif, elements));
   }
   return rows.filter((row) => row.target && animationTargetExists(elements, row.target));
@@ -2144,6 +2189,26 @@ function sequenceBaseIntent(d) {
   return pptAnimToIntent(decl);
 }
 
+// Group a sequence's targets into visual clusters under the same law as motif
+// choreography (direct-child wrapper, then ≥60% geometric containment), so a
+// card and everything on it share ONE delay slot and ONE motion vector instead
+// of the card separating from its own text. The geometric merge only accepts
+// card-sized hosts (≤25% of the stage): a full-width panel behind a bullet
+// list must not swallow the list's own build. Falls back to per-target slots
+// when the sampler provided no geometry (older scene JSON).
+function sequenceClusterKeys(sequence, stage) {
+  const targets = Array.isArray(sequence.targets) ? sequence.targets : [];
+  const items = Array.isArray(sequence.items) ? sequence.items : [];
+  if (!items.length || items.length !== targets.length) {
+    return targets.map((target) => [target]);
+  }
+  const stageArea = numberOr(stage && stage.width, 1280) * numberOr(stage && stage.height, 720);
+  const order = new Map(targets.map((target, i) => [target, i]));
+  return motifClusters(items, { maxHostArea: stageArea * 0.25 })
+    .map((cl) => cl.members.map((m) => m.key).sort((a, b) => order.get(a) - order.get(b)))
+    .sort((a, b) => order.get(a[0]) - order.get(b[0]));
+}
+
 function declaredPptSequences(slide, elements) {
   const rows = [];
   for (const sequence of slide.sequences || []) {
@@ -2157,14 +2222,18 @@ function declaredPptSequences(slide, elements) {
     const gap = numberOr(firstDefined(d.gap, d.stagger), Math.max(0, duration - overlap));
     const baseDelay = numberOr(base.delayMs, numberOr(d.delay, 0));
     const firstTrigger = normalizePptTrigger(firstDefined(d.trigger, "afterPrev"));
-    targets.forEach((target, index) => {
+    let firstRow = true;
+    sequenceClusterKeys(sequence, slide.stage).forEach((members, index) => {
       const delayMs = baseDelay + Math.max(0, index * gap);
-      rows.push({
-        ...base,
-        target,
-        trigger: index === 0 ? firstTrigger : "withPrevious",
-        delayMs,
-      });
+      for (const target of members) {
+        rows.push({
+          ...base,
+          target,
+          trigger: firstRow ? firstTrigger : "withPrevious",
+          delayMs,
+        });
+        firstRow = false;
+      }
     });
   }
   return rows.filter((row) => row.target && animationTargetExists(elements, row.target));
