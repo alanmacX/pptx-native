@@ -542,6 +542,82 @@ async function main() {
       }
     }
 
+    // --- Anti-AI taste pass ---------------------------------------------------
+    // Deck-level tells the owner flagged as instant AI giveaways. All warns:
+    // taste nudges with concrete fixes, not compile blockers.
+    {
+      const slideRects = slides.map((s) => s.getBoundingClientRect());
+      const hasCJK = (t) => /[㐀-鿿]/.test(t || "");
+      const deckIsCJK = hasCJK(document.body ? document.body.textContent || "" : "");
+      let topLeftTitles = 0;
+      let footnoteSlides = 0;
+      let gridSlides = 0;
+      slides.forEach((s, i) => {
+        const rect = slideRects[i];
+        const texts = Array.from(s.querySelectorAll(".ppt-textbox"))
+          .map((el) => ({ el, r: el.getBoundingClientRect(), fs: parseFloat(getComputedStyle(el).fontSize) || 0 }))
+          .filter((t) => (t.el.textContent || "").trim());
+        if (!texts.length) return;
+        const title = texts.slice().sort((a, b) => b.fs - a.fs)[0];
+        const tx = (title.r.left - rect.left) / Math.max(1, rect.width);
+        const ty = (title.r.top - rect.top) / Math.max(1, rect.height);
+        if (tx < 0.16 && ty < 0.22) topLeftTitles += 1;
+        // English eyebrow above the title on a CJK deck
+        if (deckIsCJK) {
+          const eyebrow = texts.find((t) => t !== title && t.fs < title.fs * 0.6 &&
+            t.r.bottom <= title.r.top + 4 && (title.r.top - t.r.bottom) < title.fs * 2.2 &&
+            /^[\x20-\x7E]+$/.test((t.el.textContent || "").trim()) &&
+            (t.el.textContent || "").trim().length >= 3);
+          if (eyebrow) {
+            add(eyebrow.el, "warn", "AI_EN_EYEBROW",
+              "English eyebrow label above a Chinese title is a template tell.",
+              "Delete it, or use a Chinese context label only where it aids scanning.");
+          }
+        }
+        if (texts.some((t) => t.fs <= 13 && (t.r.top - rect.top) / Math.max(1, rect.height) > 0.88)) footnoteSlides += 1;
+        // same-size rounded-rect grid
+        const shapes = Array.from(s.querySelectorAll(".ppt-shape"))
+          .map((el) => el.getBoundingClientRect())
+          .filter((r) => r.width > 60 && r.height > 40);
+        const sizeKey = (r) => `${Math.round(r.width / 8)}x${Math.round(r.height / 8)}`;
+        const sizes = {};
+        shapes.forEach((r) => { sizes[sizeKey(r)] = (sizes[sizeKey(r)] || 0) + 1; });
+        if (Object.values(sizes).some((n) => n >= 4)) gridSlides += 1;
+      });
+      if (slides.length >= 4 && topLeftTitles >= slides.length - 1) {
+        add(slides[0], "warn", "AI_TITLE_LOCKUP_MONOTONY",
+          `The big-title-top-left lockup repeats on ${topLeftTitles}/${slides.length} slides.`,
+          "Vary title placement: centered cover, left-third split, bottom-anchored image slide, one full-bleed statement slide.");
+      }
+      if (slides.length >= 4 && footnoteSlides >= Math.ceil(slides.length * 0.75)) {
+        add(slides[0], "warn", "AI_FOOTNOTE_FURNITURE",
+          `${footnoteSlides}/${slides.length} slides carry a bottom footnote strip.`,
+          "Footnotes only where a source needs citing — not as page furniture.");
+      }
+      if (slides.length >= 4 && gridSlides >= Math.ceil(slides.length * 0.5)) {
+        add(slides[0], "warn", "AI_CARD_GRID_MONOTONY",
+          `${gridSlides}/${slides.length} slides are same-size rectangle grids.`,
+          "Vary unit sizes by importance, break one grid with a full-width band, a diagram, or a single strong number.");
+      }
+      // High-signal robotic-copy scan (full banlist: design-and-motion.md).
+      const banned = [
+        "赋能", "抓手", "闭环", "底层逻辑", "组合拳", "沉淀",
+        "综上所述", "总而言之", "值得注意的是", "众所周知",
+        "共创辉煌", "砥砺前行", "携手共进", "谱写新篇章", "共创美好未来",
+        "取得显著成效", "深远影响", "机遇与挑战并存", "双刃剑",
+        "据研究显示", "相关数据表明", "有专家指出",
+      ];
+      slides.forEach((s) => {
+        const text = s.textContent || "";
+        const hits = banned.filter((w) => text.includes(w));
+        if (hits.length) {
+          add(s, "warn", "AI_ROBOTIC_COPY",
+            `AI-flavored phrasing: ${hits.slice(0, 4).join("、")}.`,
+            "Replace with the plain verb / a number / a named source — see design-and-motion.md Copy Hygiene.");
+        }
+      });
+    }
+
     // --- Layout geometry pass -------------------------------------------------
     // Deterministic checks that catch a whole class of silent misalignment a
     // clean compile ("ok:true / 0 losses") does NOT catch: overlay content that

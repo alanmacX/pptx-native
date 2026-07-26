@@ -112,15 +112,105 @@ Treat element styling as editable native controls:
 - Animated blur/filter/3D/skew are not native controls. Decompose into layers,
   Morph states, media, or explicit motion paths.
 
-## Copy And Preset Hygiene
+## Motion Combo Library (premium defaults, research-grounded)
 
-Avoid AI-smelling output:
+Professionals compose primitives; bare single-property motion reads cheap.
+The engine's choreography (motifs, sequences, bare-fade upgrade) already
+enforces the first three; reach for the rest deliberately:
 
-- Do not add meaningless English eyebrows in Chinese decks. Use Chinese context
-  labels only when they help scanning.
-- Titles should be claims or decisions, not generic section names.
-- Avoid empty verbs: "empower", "unlock", "transform", "reimagine", unless the
-  user supplied that brand voice.
+| Combo | Recipe | Use for |
+|---|---|---|
+| Fade-Up (workhorse) | opacity + rise 16–24px, 250ms, decelerate | cards, text blocks, images |
+| Fade-Up-Settle (hero) | Fade-Up + ~2% overshoot-return, 350–450ms | hero cards, key metrics, section titles — never body text |
+| Scale-From-Origin Pop | scale .8→1 + fade, 200–300ms, origin = semantic parent anchor | badges, nodes, satellites |
+| Spine-Draw → Node-Bloom | spine wipes 450–600ms, then each milestone grows OUT OF its spine anchor (engine does this) | timeline motif |
+| Hub-Emanate | hub scales in, satellites travel from hub toward seat + fade + scale .6→1 (engine does this) | hubSpoke motif |
+| Fade-Through Swap | out fast 75–90ms accelerate, THEN in 150–210ms decelerate (+ 92→100% scale) | replacing unrelated content |
+| Shared-Axis Step | in slides ~30px one axis + fade; out slides same axis | sequential steps |
+| Mask-Wipe + Counter-Drift | wipe reveal 400–600ms while content drifts 2–4% opposite + settles 1.05→1.00 | image/panel reveals |
+| Hero Glyph Cascade | `byLetter:12-25`, glyphs rise ~8px, total <600ms | ONE headline per section, never paragraphs |
+| Container-Transform | Morph the container's geometry; new content fades in AFTER the morph settles | cross-slide zoom/recontextualization |
+
+Hard rules that make the combos read premium:
+
+- **Clusters are atomic.** A card and everything on it enters as ONE body —
+  identical delay, direction, easing (the motif engine enforces this). A
+  micro-cascade inside a unit is ≤60ms and inherits the unit's direction.
+- **Origin continuity.** New elements grow FROM their semantic parent (spine
+  anchor, hub, trigger) — never from screen edges or their own center when a
+  parent exists. Travel for ordinary entrances is 2–3% of slide height;
+  off-screen fly-in needs a spatial story.
+- **Easing is asymmetric.** Entrances decelerate; exits accelerate at ~65% of
+  the entrance duration; linear positional motion is banned. Named curves:
+  `ease:out` (default), or exact via `tmFilter`.
+- **Stagger 20–80ms** between peer units, one shared easing/duration family —
+  never a >100ms roll-call, never everything at once.
+- **One hero motion per slide** (a draw-on, a byLetter title, a morph zoom);
+  everything else gets quiet 150–300ms entrances. Duration scale: micro 90–150,
+  standard 200–300, hero 400–500, hard cap 700ms.
+- **Morph is for continuity of the SAME subject** (zoom into a point, re-sort,
+  reframe). Prefer it over rebuilding a slide's worth of entrances when ≥1
+  object persists across the cut. Use builds within a slide, Morph between.
+
+## Anti-AI Layout Tells (from owner review — treat as blockers)
+
+- **Title lockup monotony**: the big-title-top-left + small-eyebrow + bottom
+  footnote lockup on EVERY slide is the #1 tell. Vary title placement across
+  the deck (centered cover, left-third splits, bottom-anchored image slides,
+  an occasional full-bleed statement slide). English eyebrows on Chinese decks
+  are banned outright. Footnotes only where a source needs citing — not as
+  furniture.
+- **Rectangle-grid monotony**: repeated same-size rounded-rect cards slide
+  after slide reads as template output. Vary unit sizes by importance (hero
+  metric bigger), break grids with a full-width band or a diagram, let one
+  slide be a single strong number. Cards are A layout tool, not THE layout.
+- **Text walls + meaningless charts**: if a chart doesn't prove the title,
+  cut it. Prefer one real image (sourced via asset search) or one diagram
+  over decorative stat tiles. Slides carry verdicts; notes carry prose.
+
+## Copy And Preset Hygiene (anti-AI writing rules)
+
+Titles:
+
+- Verdict-first: every content-slide title is a complete judgment with a
+  number or stance, ≤20 CJK chars (「基础功能等9月，新Siri看2027」not
+  「时间线分析」). Banned title shapes: colon-topic (X：机遇与挑战),
+  浅析X / X面面观 / "X: A Deep Dive" / "The Power of X", noun-phrase-only.
+- The horizontal test: titles read in order must tell the whole argument.
+
+Body:
+
+- Specifics over abstractions: replace 显著提升/深远影响/robust/significant
+  with a number, date, name. A weaker concrete claim beats a stronger vague
+  one — 「3家试点，2家回本」beats「试点成效显著」.
+- Max ONE deliberate parallel triple per deck. Never ≥3 bullets sharing a
+  syntactic frame or 四字格 openers; no 不仅…而且 / 不是…而是 stacks.
+- Asymmetric rhythm: pair a long specific clause with a 2–4 char fragment
+  (「成本，砍半。」). Verb-less fragments are correct slide grammar; uniform
+  sentence lengths are a primary tell.
+- Kill scaffolding on slides: 首先/其次/最后, 综上所述, 值得注意的是, 此外;
+  Additionally/Furthermore/In conclusion. Layout IS the transition.
+- Take a position: recommendation slides open with a stance that could be
+  wrong (停掉 / 别指望Q3回本 / 几乎不可能). Hedge at most once per deck,
+  attached to a named risk.
+- One register per deck: 报告体 or 口语体, chosen up front, never mixed.
+- De-jargon: 赋能→帮/让…能, 抓手→办法, 闭环→跑通全流程, 打通→连起来,
+  沉淀→存下来, 底层逻辑→原因. Empty verbs (empower/unlock/transform) and
+  empty intensifiers (极大/全面/深入/seamless/cutting-edge) need a proving
+  specific in the same sentence, or they go.
+- Named sources or honest silence: figures get 「来源, 年份」footnotes;
+  据研究显示/experts argue is banned; unsourced numbers get 内部估算.
+- Banned outright: ceremonial 套话 (共创辉煌/砥砺前行/携手共进/谱写新篇章),
+  取得圆满成功/反响热烈-class vague achievement, 是一把双刃剑,
+  机遇与挑战并存, 随着…的发展 openers, spaced " — " as universal connector,
+  **Term**: description as the default bullet shape, closing slides that
+  restate the cover with 让我们… exhortations.
+- Leave the burr: one-word lines, a sentence starting with 但, a bullet that
+  is just a number — structural looseness (never fabricated errors) is what
+  human decks have and templates don't.
+
+General:
+
 - Avoid identical slide skeletons. Vary information architecture according to
   content, not decoration.
 - Use Chinese-friendly Office-safe typography for Chinese decks. Do not force

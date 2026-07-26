@@ -802,7 +802,32 @@ function normalizeDom() {
     const notes = [];
     const elegant = isElegantMotion(el);
     const lineLike = isLineLike(el);
-    const out = animSegments(raw).map((seg) => animParts(seg).map((p) => {
+    // A bare entrance:fade on content reads as the cheapest possible motion.
+    // Under elegant, upgrade it to a composed rise-and-settle (fade + 10px
+    // rise + 1.5% scale settle) — unless it is a deliberate typewriter
+    // (byLetter/byWord), a line (wipes/fades suit lines), or explicitly
+    // parameterized (dist implies the author designed the fade).
+    const upgraded = animSegments(raw).map((seg) => {
+      const parts = animParts(seg);
+      const d = {};
+      for (const part of parts) {
+        const i = part.indexOf(":");
+        if (i < 0) d[part.trim()] = true;
+        else d[part.slice(0, i).trim()] = part.slice(i + 1).trim();
+      }
+      const isBareFade = elegant && !lineLike &&
+        compactToken(d.entrance || "") === "fade" &&
+        d.byLetter === undefined && d.byWord === undefined && d.dist === undefined;
+      if (!isBareFade) return seg;
+      const kept = parts.filter((part) => {
+        const k = part.split(":")[0].trim().toLowerCase();
+        return ["trigger", "dur", "delay", "ease"].includes(k);
+      });
+      notes.push("upgraded bare entrance:fade to a composed rise-and-settle (elegant preset)");
+      return ["compose", "opacity:in", "y:10", "scaleFrom:.985", "scaleTo:1", ...kept].join("; ");
+    });
+    const upgradedRaw = upgraded.join(" | ");
+    const out = animSegments(upgradedRaw).map((seg) => animParts(seg).map((p) => {
         const i = p.indexOf(":");
         if (i < 0) return p;
         const k = p.slice(0, i).trim();

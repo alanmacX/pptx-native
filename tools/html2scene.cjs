@@ -748,6 +748,16 @@ function extractSlide(opts) {
       }
       const params = parseSeqDecl(raw);
       const items = [];
+      // CLUSTER = one direct-child subtree of the motif container: a motif's
+      // top-level children are its perceptual units (a milestone, a row, a
+      // satellite card), and everything inside one unit — card bg, chip,
+      // text — must animate as ONE body (identical delay + motion vector).
+      const clusterIdOf = (c) => {
+        let n = c;
+        while (n.parentElement && n.parentElement !== el) n = n.parentElement;
+        if (!n.parentElement) return null;
+        return "u" + Array.prototype.indexOf.call(el.children, n);
+      };
       for (const c of el.querySelectorAll(COMPONENT_SEL)) {
         if (!c.matches(COMPONENT_SEL)) continue;
         const key = animationTargetKeyFor(c);
@@ -755,10 +765,11 @@ function extractSlide(opts) {
         const role = (c.getAttribute("data-ppt-role") || "").trim().toLowerCase();
         const b = toStageRect(c.getBoundingClientRect());
         const isLine = c.classList.contains("ppt-line") || c.tagName.toLowerCase() === "svg" || b.h <= 6 || b.w <= 6;
+        const cluster = clusterIdOf(c) || key;
         // Every child lands in items with an isLine flag; each motif classifies
         // spine/spoke/center/satellite itself (a timeline has one spine line, a
         // hub-spoke has many spoke lines).
-        items.push({ key, role, cx: b.x + b.w / 2, cy: b.y + b.h / 2, w: b.w, h: b.h, isLine });
+        items.push({ key, role, cx: b.x + b.w / 2, cy: b.y + b.h / 2, w: b.w, h: b.h, isLine, cluster });
       }
       // SVG line/polyline primitives are auto-detected connectors; their compiled
       // source.key equals animationTargetKeyFor, so they are valid motif targets
@@ -1497,6 +1508,64 @@ function resolveAfterPrev(rows) {
 
 // timeline: draw the axis (spine) first, then resolve nodes/cards in reading
 // order along the axis, each drifting the last few px into place and settling.
+// Group flattened motif items into visual CLUSTERS (a card + everything on
+// it). Choreography law: clusters are atomic — every member shares the same
+// delay and the same motion vector, so a card never separates from its text.
+function motifClusters(items) {
+  // Pass 1 — structural: items sharing a direct-child wrapper of the motif
+  // container (in-page cluster id) form one group.
+  const map = new Map();
+  for (const it of items || []) {
+    const id = it.cluster || it.key;
+    if (!map.has(id)) map.set(id, { id, members: [] });
+    map.get(id).members.push(it);
+  }
+  const groups = [...map.values()];
+  const refresh = (cl) => {
+    const rootItem = [...cl.members].sort((a, b) => (b.w * b.h) - (a.w * a.h))[0];
+    cl.cx = rootItem.cx;
+    cl.cy = rootItem.cy;
+    cl.w = rootItem.w;
+    cl.h = rootItem.h;
+    cl.role = (cl.members.find((m) => m.role) || {}).role || "";
+    cl.isLine = cl.members.length === 1 && Boolean(cl.members[0].isLine);
+    cl.points = rootItem.points;
+    cl.key = rootItem.key;
+  };
+  groups.forEach(refresh);
+  // Pass 2 — geometric: authors often lay units out FLAT (card bg, chip, and
+  // text as absolute siblings, no wrapper). A group whose anchor sits inside
+  // a larger group's anchor box (≥60% of its area) is part of that unit and
+  // merges into it. Lines (spine/spokes/dividers) never merge.
+  const containedIn = (big, s) => {
+    const ox = Math.max(0, Math.min(big.cx + big.w / 2, s.cx + s.w / 2) - Math.max(big.cx - big.w / 2, s.cx - s.w / 2));
+    const oy = Math.max(0, Math.min(big.cy + big.h / 2, s.cy + s.h / 2) - Math.max(big.cy - big.h / 2, s.cy - s.h / 2));
+    return (ox * oy) / Math.max(1, s.w * s.h) >= 0.6;
+  };
+  const byArea = [...groups].sort((a, b) => (b.w * b.h) - (a.w * a.h));
+  const merged = new Set();
+  for (let i = 0; i < byArea.length; i += 1) {
+    const host = byArea[i];
+    if (merged.has(host) || host.isLine) continue;
+    for (let j = i + 1; j < byArea.length; j += 1) {
+      const small = byArea[j];
+      if (merged.has(small) || small.isLine) continue;
+      if (containedIn(host, small)) {
+        host.members.push(...small.members);
+        merged.add(small);
+      }
+    }
+  }
+  const clusters = byArea.filter((cl) => !merged.has(cl));
+  clusters.forEach(refresh);
+  return clusters;
+}
+
+const clampPx = (v, lim) => Math.max(-lim, Math.min(lim, v));
+
+// timeline: the spine draws first, then each milestone GROWS OUT OF the spine
+// — its entrance starts at its anchor point ON the line and travels to its
+// final position (structural-origin motion, not a drift from nowhere).
 function timelineMotif(motif) {
   const p = motif.params || {};
   const axis = String(p.axis || "x").toLowerCase() === "y" ? "y" : "x";
@@ -1515,28 +1584,37 @@ function timelineMotif(motif) {
   };
 
   const items = motif.items || [];
-  const spine = items.find((it) => it.role === "spine") || items.find((it) => it.isLine) || null;
-  const nodes = items.filter((it) => it !== spine);
+  const spineItem = items.find((it) => it.role === "spine") || items.find((it) => it.isLine) || null;
   const spineDur = Math.max(dur, 640);
-  if (spine) {
-    push(spine.key, pptAnimToIntent({ entrance: "wipe", direction: wipeDirectionFrom(from, axis), dur: spineDur }), baseDelay);
+  if (spineItem) {
+    push(spineItem.key, pptAnimToIntent({ entrance: "wipe", direction: wipeDirectionFrom(from, axis), dur: spineDur }), baseDelay);
   }
-  const spineLead = spine ? spineDur - overlap : 0;
+  const spineLead = spineItem ? spineDur - overlap : 0;
 
-  const ordered = [...nodes].sort((a, b) => (axis === "x" ? a.cx - b.cx : a.cy - b.cy));
-  if (from === "right" || from === "bottom") ordered.reverse();
-  const drift = from === "right" || from === "bottom" ? 24 : -24;
-  ordered.forEach((it, i) => {
-    const intent = pptAnimToIntent({
-      compose: true,
-      opacity: "in",
-      x: axis === "x" ? drift : 0,
-      y: axis === "x" ? 18 : drift,
-      scaleFrom: 0.96,
-      scaleTo: 1,
-      dur,
-    });
-    push(it.key, intent, baseDelay + spineLead + i * gap);
+  const clusters = motifClusters(items.filter((it) => it !== spineItem));
+  clusters.sort((a, b) => (axis === "x" ? a.cx - b.cx : a.cy - b.cy));
+  if (from === "right" || from === "bottom") clusters.reverse();
+  clusters.forEach((cl, i) => {
+    // Offset from the spine anchor to the cluster's home: the whole cluster
+    // starts ON the line and grows outward. Dots sitting on the line pop up
+    // from nothing instead.
+    const off = spineItem
+      ? clampPx(axis === "x" ? spineItem.cy - cl.cy : spineItem.cx - cl.cx, 220)
+      : (from === "right" || from === "bottom" ? 24 : -24);
+    const onSpine = spineItem && Math.abs(off) < 14;
+    const delayMs = baseDelay + spineLead + i * gap;
+    for (const member of cl.members) {
+      push(member.key, pptAnimToIntent({
+        compose: true,
+        opacity: "in",
+        x: axis === "x" ? 0 : off,
+        y: axis === "x" ? off : 0,
+        scaleFrom: onSpine ? 0.2 : 0.9,
+        scaleTo: 1,
+        ease: "out",
+        dur,
+      }), delayMs);
+    }
   });
   return rows;
 }
@@ -1556,13 +1634,21 @@ function layersMotif(motif) {
   const gap = numberOr(firstDefined(p.gap, p.stagger), 70);
   const baseDelay = numberOr(p.delay, 0);
   const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
-  const ordered = [...(motif.items || [])].sort((a, b) => a.cy - b.cy);
-  return ordered.map((it, i) => ({
-    ...pptAnimToIntent({ compose: true, opacity: "in", y: -16, scaleFrom: 0.98, scaleTo: 1, dur }),
-    target: it.key,
-    trigger: i === 0 ? firstTrigger : "withPrevious",
-    delayMs: baseDelay + i * gap,
-  }));
+  const clusters = motifClusters(motif.items).sort((a, b) => a.cy - b.cy);
+  const rows = [];
+  let first = true;
+  clusters.forEach((cl, i) => {
+    for (const member of cl.members) {
+      rows.push({
+        ...pptAnimToIntent({ compose: true, opacity: "in", y: -16, scaleFrom: 0.98, scaleTo: 1, dur }),
+        target: member.key,
+        trigger: first ? firstTrigger : "withPrevious",
+        delayMs: baseDelay + i * gap,
+      });
+      first = false;
+    }
+  });
+  return rows;
 }
 
 // comparison: left and right columns enter symmetrically from their own edge,
@@ -1574,23 +1660,25 @@ function comparisonMotif(motif) {
   const gap = numberOr(firstDefined(p.gap, p.stagger), 120);
   const baseDelay = numberOr(p.delay, 0);
   const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
-  const items = motif.items || [];
-  const xs = items.map((it) => it.cx);
+  const clusters = motifClusters(motif.items);
+  const xs = clusters.map((cl) => cl.cx);
   const mid = xs.length ? (Math.min(...xs) + Math.max(...xs)) / 2 : 0;
-  const center = items.filter((it) => it.role === "center");
-  const sided = items.filter((it) => it.role !== "center");
-  const left = sided.filter((it) => it.role === "left" || (!it.role && it.cx < mid)).sort((a, b) => a.cy - b.cy);
-  const right = sided.filter((it) => it.role === "right" || (!it.role && it.cx >= mid)).sort((a, b) => a.cy - b.cy);
+  const center = clusters.filter((cl) => cl.role === "center");
+  const sided = clusters.filter((cl) => cl.role !== "center");
+  const left = sided.filter((cl) => cl.role === "left" || (!cl.role && cl.cx < mid)).sort((a, b) => a.cy - b.cy);
+  const right = sided.filter((cl) => cl.role === "right" || (!cl.role && cl.cx >= mid)).sort((a, b) => a.cy - b.cy);
   const rows = [];
   let first = true;
-  const emit = (it, driftX, delayMs) => {
-    rows.push({
-      ...pptAnimToIntent({ compose: true, opacity: "in", x: driftX, scaleFrom: 0.97, scaleTo: 1, dur }),
-      target: it.key,
-      trigger: first ? firstTrigger : "withPrevious",
-      delayMs,
-    });
-    first = false;
+  const emit = (cl, driftX, delayMs) => {
+    for (const member of cl.members) {
+      rows.push({
+        ...pptAnimToIntent({ compose: true, opacity: "in", x: driftX, scaleFrom: 0.97, scaleTo: 1, dur }),
+        target: member.key,
+        trigger: first ? firstTrigger : "withPrevious",
+        delayMs,
+      });
+      first = false;
+    }
   };
   const rowCount = Math.max(left.length, right.length);
   for (let i = 0; i < rowCount; i++) {
@@ -1598,7 +1686,7 @@ function comparisonMotif(motif) {
     if (left[i]) emit(left[i], -28, delayMs);
     if (right[i]) emit(right[i], 28, delayMs);
   }
-  center.forEach((it) => emit(it, 0, baseDelay + rowCount * gap));
+  center.forEach((cl) => emit(cl, 0, baseDelay + rowCount * gap));
   return rows;
 }
 
@@ -1609,13 +1697,21 @@ function metricClusterMotif(motif) {
   const gap = numberOr(firstDefined(p.gap, p.stagger), 90);
   const baseDelay = numberOr(p.delay, 0);
   const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
-  const ordered = [...(motif.items || [])].sort((a, b) => a.cy - b.cy || a.cx - b.cx);
-  return ordered.map((it, i) => ({
-    ...pptAnimToIntent({ compose: true, opacity: "in", y: 18, scaleFrom: 0.96, scaleTo: 1, dur }),
-    target: it.key,
-    trigger: i === 0 ? firstTrigger : "withPrevious",
-    delayMs: baseDelay + i * gap,
-  }));
+  const clusters = motifClusters(motif.items).sort((a, b) => a.cy - b.cy || a.cx - b.cx);
+  const rows = [];
+  let first = true;
+  clusters.forEach((cl, i) => {
+    for (const member of cl.members) {
+      rows.push({
+        ...pptAnimToIntent({ compose: true, opacity: "in", y: 18, scaleFrom: 0.96, scaleTo: 1, dur }),
+        target: member.key,
+        trigger: first ? firstTrigger : "withPrevious",
+        delayMs: baseDelay + i * gap,
+      });
+      first = false;
+    }
+  });
+  return rows;
 }
 
 // hubSpoke: the hub grows first, spokes (connector lines) draw outward, then
@@ -1629,19 +1725,21 @@ function hubSpokeMotif(motif) {
   const baseDelay = numberOr(p.delay, 0);
   const firstTrigger = normalizePptTrigger(firstDefined(p.trigger, "afterPrev"));
   const items = motif.items || [];
-  const spokes = items.filter((it) => it.role === "spoke" || (it.isLine && it.role !== "center"));
-  const nonLine = items.filter((it) => !spokes.includes(it));
-  let center = nonLine.find((it) => it.role === "center");
+  const spokeItems = items.filter((it) => it.role === "spoke" || (it.isLine && it.role !== "center"));
+  const clusters = motifClusters(items.filter((it) => !spokeItems.includes(it)));
+  const spokes = spokeItems;
+  const nonLine = clusters;
+  let center = nonLine.find((cl) => cl.role === "center");
   if (!center && nonLine.length) {
-    const pts = nonLine.filter((it) => it.role !== "center");
+    const pts = nonLine.filter((cl) => cl.role !== "center");
     const ref = pts.length ? pts : nonLine;
     const mx = ref.reduce((s, it) => s + it.cx, 0) / ref.length;
     const my = ref.reduce((s, it) => s + it.cy, 0) / ref.length;
-    center = nonLine.reduce((best, it) => {
+    const best = nonLine.reduce((acc, it) => {
       const d = (it.cx - mx) ** 2 + (it.cy - my) ** 2;
-      return !best || d < best._d ? Object.assign({ _d: d }, it) : best;
+      return !acc || d < acc.d ? { d, key: it.key } : acc;
     }, null);
-    center = nonLine.find((it) => it.key === center.key);
+    center = nonLine.find((cl) => cl.key === best.key);
   }
   const cx = center ? center.cx : 0;
   const cy = center ? center.cy : 0;
@@ -1666,7 +1764,7 @@ function hubSpokeMotif(motif) {
     if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? "right" : "left";
     return dy >= 0 ? "down" : "up";
   };
-  const satellites = nonLine.filter((it) => it !== center).sort(byAngle);
+  const satellites = nonLine.filter((cl) => cl !== center).sort(byAngle);
   spokes.sort(byAngle);
 
   const rows = [];
@@ -1678,14 +1776,37 @@ function hubSpokeMotif(motif) {
   };
 
   const centerDur = Math.max(dur, 560);
-  if (center) push(center.key, pptAnimToIntent({ compose: true, opacity: "in", scaleFrom: 0.82, scaleTo: 1, dur: centerDur }), baseDelay);
+  if (center) {
+    for (const member of center.members) {
+      push(member.key, pptAnimToIntent({ compose: true, opacity: "in", scaleFrom: 0.82, scaleTo: 1, dur: centerDur }), baseDelay);
+    }
+  }
   const afterCenter = baseDelay + (center ? centerDur - overlap : 0);
 
   const spokeDur = Math.max(Math.round(dur * 0.7), 360);
   spokes.forEach((sp, i) => push(sp.key, pptAnimToIntent({ entrance: "wipe", direction: spokeDirection(sp), dur: spokeDur }), afterCenter + i * Math.min(gap, 60)));
   const afterSpokes = afterCenter + (spokes.length ? spokeDur : 0);
 
-  satellites.forEach((st, i) => push(st.key, pptAnimToIntent({ compose: true, opacity: "in", scaleFrom: 0.85, scaleTo: 1, dur }), afterSpokes + i * gap));
+  // Satellites EMANATE from the hub: each cluster's entrance starts 55% of
+  // the way back toward the hub and travels outward along its own spoke
+  // direction — continuity with the spoke wipe that just reached it.
+  satellites.forEach((st, i) => {
+    const offX = center ? clampPx((cx - st.cx) * 0.55, 260) : 0;
+    const offY = center ? clampPx((cy - st.cy) * 0.55, 260) : 0;
+    const delayMs = afterSpokes + i * gap;
+    for (const member of st.members) {
+      push(member.key, pptAnimToIntent({
+        compose: true,
+        opacity: "in",
+        x: offX,
+        y: offY,
+        scaleFrom: 0.7,
+        scaleTo: 1,
+        ease: "out",
+        dur,
+      }), delayMs);
+    }
+  });
   return rows;
 }
 
