@@ -113,9 +113,9 @@ def build_capabilities() -> dict[str, Any]:
                 "status": COMPILES,
                 "ooxmlTarget": "p:graphicFrame / c:chart (+ embedded xlsx)",
                 "chartTypes": ["bar", "column", "barh", "line", "pie"],
-                "authorIRShape": {"type": "chart", "chartType": "bar|line|pie", "x": "px", "y": "px",
+                "authorIRShape": {"type": "chart", "chartType": "bar|column|barh|line|pie", "x": "px", "y": "px",
                                   "w": "px", "h": "px", "title": "str?", "legend": "bool?",
-                                  "categories": "[str]",
+                                  "dataLabels": "bool?", "categories": "[str]",
                                   "series": "[{name, values:[num], color:hex|slot?}]"},
                 "note": "Native data-driven chart with an embedded editable workbook (PPT 'Edit "
                         "Data' opens the xlsx). Series colors accept theme slots. Cached values "
@@ -230,7 +230,7 @@ def build_capabilities() -> dict[str, Any]:
                     "ooxmlTarget": "p:graphicFrame / c:chart + embedded xlsx",
                     "html": "native scene JSON only",
                     "sceneType": "chart",
-                    "properties": ["chartType", "categories", "series", "seriesColor", "title", "legend"],
+                    "properties": ["chartType", "categories", "series", "seriesColor", "title", "legend", "dataLabels"],
                     "effects": [],
                     "timing": all_timing,
                     "gaps": ["comboChart", "scatter", "area", "axisFormatting", "htmlExtraction"],

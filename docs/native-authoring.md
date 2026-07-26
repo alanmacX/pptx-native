@@ -87,13 +87,19 @@ Merged cells (colspan/rowspan) not yet supported.
 
 ### chart  (`components.chart`, compiles)
 ```json
-{ "type": "chart", "chartType": "bar", "x": 80, "y": 90, "w": 700, "h": 520,
-  "title": "Revenue", "legend": true,
+{ "type": "chart", "chartType": "column", "x": 80, "y": 90, "w": 700, "h": 520,
+  "title": "Revenue", "legend": true, "dataLabels": false,
   "categories": ["Q1", "Q2", "Q3", "Q4"],
   "series": [ { "name": "Product A", "values": [12,15,14,19], "color": "accent1" } ] }
 ```
-`chartType` ∈ bar/column/barh/line/pie. Ships with an **embedded .xlsx**, so
-PowerPoint's *Edit Data* opens the source. Series colors accept theme slots.
+`chartType` ∈ bar/column (vertical bars) / barh (horizontal) / line / pie. Emits a
+real `c:chart` part — series as `strRef`/`numRef` with `Sheet1!$B$2:$B$N` formulas
+*and* full value caches, category+value axes (bar/line), `title` (omit → no title),
+`legend` (default true, bottom), `dataLabels` (default false → shows values) — plus
+an **embedded .xlsx** carrying the same data, so PowerPoint's *Edit Data* opens a
+live source. Series colors accept theme slots. All text (series/category names,
+title) is escape-safe incl. CJK. A chart with empty `categories`/`series` is
+dropped and reported in `losses[]`.
 
 ## Per-slide
 

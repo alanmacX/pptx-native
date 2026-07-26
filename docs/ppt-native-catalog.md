@@ -19,7 +19,7 @@ Legend: ✅ implemented in this engine · 🟡 partial · ❌ not yet (gap to fi
 | `p:cxnSp` | connectors (straight/bent/curved, with arrowheads) | ✅ straight + head/tail arrows (triangle/stealth/arrow/diamond/oval); bent/curved ❌ |
 | `p:pic` | picture (crop, duotone, artistic effects) | 🟢 real local/data image |
 | `p:graphicFrame` → `a:tbl` | table | 🟡 basic |
-| `p:graphicFrame` → `c:chart` | chart | ❌ |
+| `p:graphicFrame` → `c:chart` | chart | ✅ bar/column/barh/line/pie via scene `type:"chart"` — real `c:chart` part with strRef/numRef formulas + caches, series solidFill (theme slots ok), title/legend/dataLabels, cat+val axes, and an **embedded editable xlsx** (Edit Data works); combo/scatter/area/axis formatting ❌ |
 | `p:graphicFrame` → `dgm` | SmartArt | ❌ |
 | `p:graphicFrame` → OLE | embedded object | ❌ |
 | `p:grpSp` | group | 🟡 |
@@ -136,7 +136,7 @@ Priority order (highest ROI first):
 6. **Container choreography**: `data-ppt-sequence` expands child objects into
    staggered/overlapped native timing. ✅
 7. **Auto morphKey inference** from HTML step diffs. ✅ via `autoMorph` flag.
-8. Filled freeform ✅, connector arrowheads ✅, glow ✅. Charts / SmartArt /
-   media / bent connectors / soft-edge still ❌.
+8. Filled freeform ✅, connector arrowheads ✅, glow ✅, native charts (bar/column/
+   barh/line/pie + embedded xlsx) ✅. SmartArt / bent connectors / soft-edge still ❌.
 </content>
 </invoke>
