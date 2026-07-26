@@ -134,6 +134,12 @@ The author compiler now emits native `p:timing` for:
   visual transition). Movie-lane verified: chain cadence is consistent, BUT in
   exported video advTm does NOT wait for running animations — set advance ≥
   the slide's animation end time.
+- native 3D: CSS `transform: perspective(p) rotateY(deg)` / `rotateX(deg)` on
+  shapes/pictures converts to a native `a:scene3d` camera (normalize extracts
+  the euler angles, flattens the CSS so geometry reads the flat box, and
+  reports the conversion; sign mapping browser≡PowerPoint verified). Morph
+  tweens camera rotation, so two slides with different angles are a native 3D
+  card flip — playback-verified via the movie lane.
 - native picture crop + ken-burns: `object-fit:cover` and overflow:hidden
   container clipping compile to `a:srcRect` (composable; element geometry
   becomes the visible intersection). Morph TWEENS srcRect (gate-verified), so

@@ -718,11 +718,33 @@ function normalizeDom() {
       } else if (isNativeXfrm) {
         // Preserve as-is; rotation + flipH/flipV are read natively downstream.
       } else {
-        if (el.matches(nativeSelector)) keepVisualBox(el);
+        // 3D rotation (perspective/rotateX/rotateY) converts to a native
+        // scene3d camera: extract euler angles from the matrix (perspective
+        // only touches row 4, so m31/m33/m23/m22 stay clean), stamp them as a
+        // declared attribute, and flatten the CSS so geometry reads the flat
+        // box — matching PowerPoint's rotate-around-center camera semantics.
+        let converted3d = false;
+        if (el.matches(nativeSelector)) {
+          let m3 = null;
+          try { m3 = new DOMMatrixReadOnly(st.transform); } catch { m3 = null; }
+          if (m3 && !m3.is2D) {
+            const rotY = (Math.atan2(m3.m31, m3.m33) * 180) / Math.PI;
+            const rotX = (Math.atan2(m3.m23, m3.m22) * 180) / Math.PI;
+            if ((Math.abs(rotY) >= 1 || Math.abs(rotX) >= 1) &&
+                Math.abs(rotY) <= 85 && Math.abs(rotX) <= 85) {
+              el.setAttribute("data-ppt-rot3d",
+                `${Math.round(rotX * 10) / 10},${Math.round(rotY * 10) / 10}`);
+              converted3d = true;
+              add(el, "convert-3d-rotation",
+                `converted CSS 3D rotation (x:${Math.round(rotX)}° y:${Math.round(rotY)}°) to native scene3d camera`);
+            }
+          }
+        }
+        if (el.matches(nativeSelector) && !converted3d) keepVisualBox(el);
         el.style.transform = "none";
         el.style.perspective = "none";
         el.style.transformStyle = "flat";
-        add(el, "drop-banned-css", "removed transform/perspective layout");
+        if (!converted3d) add(el, "drop-banned-css", "removed transform/perspective layout");
       }
     }
     // flex/grid/normal-flow are fine: the browser resolves them to concrete boxes

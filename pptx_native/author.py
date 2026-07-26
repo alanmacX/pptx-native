@@ -627,6 +627,7 @@ def _image_element_xml(
         f'          <a:xfrm{rot}><a:off x="{x}" y="{y}"/><a:ext cx="{max(cx, 1)}" cy="{max(cy, 1)}"/></a:xfrm>\n'
         '          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>\n'
         f"{_effects_xml(shadow, glow, 10, blur=blur, reflection=reflection)}"
+        f"{_scene3d_xml(element.get('scene3d'))}"
         "        </p:spPr>\n"
         "      </p:pic>"
     )
@@ -1092,6 +1093,7 @@ def _element_xml(shape_id: int, element: dict[str, Any], sx: float, sy: float) -
         radius_adj=radius_adj,
         text=element.get("text"),
         text_style=element,
+        scene3d=element.get("scene3d"),
         rotation=element.get("rotation"),
         flip_h=bool(element.get("flipH")),
         flip_v=bool(element.get("flipV")),
@@ -1124,6 +1126,7 @@ def _shape_xml(
     flip_v: bool = False,
     blur: dict[str, Any] | None = None,
     reflection: dict[str, Any] | None = None,
+    scene3d: dict[str, Any] | None = None,
 ) -> str:
     rot = _rotation_attr(rotation) + _flip_attr(flip_h, flip_v)
     sp_pr = (
@@ -1133,6 +1136,7 @@ def _shape_xml(
         f"{_fill_xml(fill, 10, alpha=fill_alpha, gradient=fill_gradient)}"
         f"{_line_xml_inner(line, 10)}"
         f"{_effects_xml(shadow, glow, 10, blur=blur, reflection=reflection)}"
+        f"{_scene3d_xml(scene3d)}"
         "        </p:spPr>\n"
     )
     tx = _text_body(text, text_style or {}) if text is not None else ""
@@ -2691,6 +2695,31 @@ def _rotation_attr(value: Any) -> str:
     if abs(degrees) < 0.001:
         return ""
     return f' rot="{int(round(degrees * 60000))}"'
+
+
+def _scene3d_xml(value: Any, indent: int = 10) -> str:
+    """Native 3D camera (a:scene3d + a:sp3d) from converted CSS 3D rotation.
+    Morph tweens camera rotation (gate-verified 2026-07-26), so two slides
+    with different angles are a native 3D flip."""
+    if not isinstance(value, dict):
+        return ""
+    lat = float(value.get("latDeg", 0) or 0)
+    lon = float(value.get("lonDeg", 0) or 0)
+    rev = float(value.get("revDeg", 0) or 0)
+    if abs(lat) < 0.5 and abs(lon) < 0.5 and abs(rev) < 0.5:
+        return ""
+    fov = int(value.get("fov", 1800000))
+
+    def _u(deg: float) -> int:
+        return int(round((deg % 360.0) * 60000))
+
+    pad = " " * indent
+    return (
+        f'{pad}<a:scene3d><a:camera prst="perspectiveFront" fov="{fov}">'
+        f'<a:rot lat="{_u(lat)}" lon="{_u(lon)}" rev="{_u(rev)}"/></a:camera>'
+        f'<a:lightRig rig="threePt" dir="t"/></a:scene3d>\n'
+        f"{pad}<a:sp3d/>\n"
+    )
 
 
 def _src_rect_xml(crop: Any) -> str:

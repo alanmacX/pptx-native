@@ -628,6 +628,7 @@ function extractSlide(opts) {
       key: stableKey(el, tag),
       tag,
       id: el.id || null,
+      rot3dRaw: el.getAttribute("data-ppt-rot3d") || null,
       classes: [...el.classList],
       ancestorIds: sourceAncestors(el).ids,
       ancestorClasses: sourceAncestors(el).classes,
@@ -1243,6 +1244,7 @@ function buildAuthorScene(ir) {
           },
           radiusPx: cssRadiusPx(el.border.radius, box),
           shadow: parseBoxShadow(el.boxShadow),
+          ...(el.rot3dRaw ? { scene3d: scene3dFromRot(el.rot3dRaw) } : {}),
           _zIndex: el.zIndex,
           _stackPath: el.stackPath || [el.zIndex || 0],
           _order: el.order,
@@ -1265,6 +1267,7 @@ function buildAuthorScene(ir) {
         name: sourceName(image, "image"),
         src: image.src,
         ...(image.crop ? { crop: image.crop } : {}),
+        ...(image.rot3dRaw ? { scene3d: scene3dFromRot(image.rot3dRaw) } : {}),
         x: box.x,
         y: box.y,
         w: box.w,
@@ -2633,6 +2636,17 @@ function roundNumber(n, digits = 2) {
 
 function sourceName(el, suffix) {
   return `${suffix} ${el.id ? "#" + el.id : el.classes.length ? "." + el.classes.slice(0, 2).join(".") : el.tag}`.slice(0, 80);
+}
+
+// CSS 3D euler angles (from normalize's data-ppt-rot3d "x,y") -> OOXML camera
+// rot. CSS +rotY turns the right edge AWAY from the viewer; OOXML +lon brings
+// it nearer (gate-verified), so both axes negate.
+function scene3dFromRot(raw) {
+  const parts = String(raw || "").split(",").map(Number);
+  const rotX = Number.isFinite(parts[0]) ? parts[0] : 0;
+  const rotY = Number.isFinite(parts[1]) ? parts[1] : 0;
+  if (!rotX && !rotY) return null;
+  return { latDeg: -rotX, lonDeg: -rotY };
 }
 
 function sourceRef(el) {

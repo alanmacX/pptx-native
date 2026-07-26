@@ -369,7 +369,9 @@ Each milestone ships user-visible value; nothing waits for the whole design.
      ken-burns path is OPEN. Writer gap: author.py never emits srcRect yet.
    - sp3d camera rotation (perspectiveFront lon 0°→50°, hand-injected):
      **TWEENS** — real 3D swivel with consistent lighting; the T3 3D-flip rung
-     is OPEN (writer support for scene3d from CSS perspective/rotateY queued).
+     is OPEN. Writer support SHIPPED: CSS perspective/rotateX/rotateY →
+     scene3d camera (euler extraction from the matrix, flattened geometry,
+     sign mapping browser≡PowerPoint verified via movie lane).
    Still open: group-children matching; whether source-side entrance
    animations break matching (and which kinds).
 6. advTm hands-free chains — **RESULTS (movie lane)**: 3-hop morph chain plays
