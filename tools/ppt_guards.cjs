@@ -42,6 +42,12 @@ function isElegantPreset(value) {
 function isAmbientEffect(slide, effect) {
   return Boolean(effect.ambient) || compactToken(slide.motionIntent) === "ambient";
 }
+// Flourish rows mark a genuinely rotating object (data-ppt-motion-purpose=dial/
+// loader/...). The normalizer already allowed them; the final guard must honor
+// the same escape hatch instead of destroying the spin it promised to keep.
+function isFlourishEffect(effect) {
+  return Boolean(effect.flourish);
+}
 function elementByTarget(slide) {
   const out = new Map();
   for (const element of slide.elements || []) {
@@ -220,8 +226,9 @@ function ruleElegantMotionPreset(scene, corrections) {
         n += 1;
       }
 
+      const flourish = isFlourishEffect(fx);
       const currentEffect = String(out.effect || "").toLowerCase();
-      if (currentEffect === "spin" && !ambient) {
+      if (currentEffect === "spin" && !ambient && !flourish) {
         const e = edit();
         e.effect = "pulse";
         e.scale = Math.min(Number(e.scale || 104), 106);
@@ -232,7 +239,7 @@ function ruleElegantMotionPreset(scene, corrections) {
         n += 1;
       }
 
-      if (EMPHASIS.has(String(out.effect || "").toLowerCase()) && !ambient) {
+      if (EMPHASIS.has(String(out.effect || "").toLowerCase()) && !ambient && !flourish) {
         flourishCount += 1;
         if (flourishCount > 1) {
           const e = edit();
@@ -252,12 +259,12 @@ function ruleElegantMotionPreset(scene, corrections) {
         }
       }
 
-      if (!ambient && clampRepeat(out)) {
+      if (!ambient && !flourish && clampRepeat(out)) {
         corrections.push({ rule: "elegant-motion-preset", slide: slide.name, target: fx.target,
           message: "clamped repeating animation to two iterations" });
         n += 1;
       }
-      if (!ambient && !["motionpath", "mediaplay", "mediapause", "mediastop", "build"].includes(String(out.effect || "").toLowerCase()) &&
+      if (!ambient && !flourish && !["motionpath", "mediaplay", "mediapause", "mediastop", "build"].includes(String(out.effect || "").toLowerCase()) &&
           clampDuration(out, 900)) {
         corrections.push({ rule: "elegant-motion-preset", slide: slide.name, target: fx.target,
           message: "clamped long non-motion animation duration to 900ms" });

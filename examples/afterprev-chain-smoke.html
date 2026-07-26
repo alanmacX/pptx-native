@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>afterPrev chain + corrected presetIDs smoke</title>
+</head>
+<body>
+<section class="ppt-slide" id="s1" data-ppt-motion-preset="elegant" data-ppt-motion-intent="hierarchy"
+         style="width:1280px;height:720px;background:#0E1726;position:relative;">
+  <!-- Three afterPrev fades: must compile to accumulated absolute delays (0 / ~end1 / ~end2), never all t=0. -->
+  <div class="ppt-textbox" id="t1" data-ppt-anim="entrance:fade; trigger:afterPrev; dur:400"
+       style="position:absolute;left:80px;top:80px;width:300px;font:600 28px sans-serif;color:#EAF2FF;">第一步</div>
+  <div class="ppt-textbox" id="t2" data-ppt-anim="entrance:fade; trigger:afterPrev; dur:400"
+       style="position:absolute;left:80px;top:160px;width:300px;font:600 28px sans-serif;color:#EAF2FF;">第二步</div>
+  <div class="ppt-textbox" id="t3" data-ppt-anim="entrance:fade; trigger:afterPrev; dur:400; delay:200"
+       style="position:absolute;left:80px;top:240px;width:300px;font:600 28px sans-serif;color:#EAF2FF;">第三步(+200ms)</div>
+  <!-- The four corrected presetIDs: diamond=8, plus=13, randombars=14, wedge=20. -->
+  <div class="ppt-shape" id="d1" data-shape="rect" data-ppt-anim="entrance:diamond; trigger:afterPrev; dur:500"
+       style="position:absolute;left:560px;top:80px;width:140px;height:90px;background:#22D3EE;"></div>
+  <div class="ppt-shape" id="d2" data-shape="rect" data-ppt-anim="entrance:plus; trigger:afterPrev; dur:500"
+       style="position:absolute;left:730px;top:80px;width:140px;height:90px;background:#818CF8;"></div>
+  <div class="ppt-shape" id="d3" data-shape="rect" data-ppt-anim="entrance:randombars; trigger:afterPrev; dur:500"
+       style="position:absolute;left:560px;top:200px;width:140px;height:90px;background:#F5B14C;"></div>
+  <div class="ppt-shape" id="d4" data-shape="rect" data-ppt-anim="entrance:wedge; trigger:afterPrev; dur:500"
+       style="position:absolute;left:730px;top:200px;width:140px;height:90px;background:#5EEAD4;"></div>
+</section>
+</body>
+</html>

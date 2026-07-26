@@ -1704,11 +1704,11 @@ _ANIM_EFFECT_FILTERS: dict[str, tuple[int, str]] = {
     "box": (4, "box(in)"),
     "checkerboard": (5, "checkerboard(across)"),
     "circle": (6, "circle"),
-    "diamond": (7, "diamond"),
+    "diamond": (8, "diamond"),
     "dissolve": (9, "dissolve"),
-    "plus": (12, "plus"),
-    "randombars": (13, "randombar(horizontal)"),
-    "wedge": (18, "wedge"),
+    "plus": (13, "plus"),
+    "randombars": (14, "randombar(horizontal)"),
+    "wedge": (20, "wedge"),
     "wheel": (21, "wheel(4)"),
     "wipe": (22, "wipe(up)"),
 }
@@ -1852,8 +1852,20 @@ def _timing_xml(
         inner_id = node_id + 1
         node_id += 2
         effect_rows = []
+        # afterPrevious chains to the END of the previous effect. html2scene
+        # resolves this to absolute delays before authoring; this accumulation
+        # covers hand-authored scene JSON, where delay-less afterPrevious
+        # siblings would otherwise all fire at t=0.
+        prev_end_ms = 0
         for idx, animation in enumerate(items):
             node_type = _animation_node_type(animation, idx)
+            if _animation_trigger(animation) == "afterPrevious":
+                own_delay = _ms(animation.get("delayMs", animation.get("delay", 0)), 0)
+                animation = {**animation, "delayMs": prev_end_ms + own_delay}
+            if str(animation.get("repeat", "")) not in ("infinite", "indefinite"):
+                delay = _ms(animation.get("delayMs", animation.get("delay", 0)), 0)
+                duration = _ms(animation.get("durationMs", animation.get("duration", 500)), 500)
+                prev_end_ms = max(prev_end_ms, delay + duration)
             xml, node_id = _animation_node_xml(animation, node_id, node_type)
             effect_rows.append(xml)
         group_start = '<p:cond delay="indefinite"/>'
@@ -1945,6 +1957,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
     delay = _ms(animation.get("delayMs", animation.get("delay", 0)), 0)
     duration = _ms(animation.get("durationMs", animation.get("duration", 500)), 500)
     ease = _ease_attr(animation)
+    tmf = _tm_filter_attr(animation)
     if effect == "appear":
         duration = max(1, duration)
     if effect == "compose":
@@ -2044,7 +2057,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
         preset_class = "entr" if opacity == "in" else "exit" if opacity == "out" else "emph"
         xml = (
             "                          <p:par>\n"
-            f'                            <p:cTn id="{ctn_id}" presetID="10" presetClass="{preset_class}" presetSubtype="0" fill="hold" grpId="{grp}" nodeType="{node_type}">\n'
+            f'                            <p:cTn id="{ctn_id}" presetID="10" presetClass="{preset_class}" presetSubtype="0" fill="hold"{tmf} grpId="{grp}" nodeType="{node_type}">\n'
             f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
             "                              <p:childTnLst>\n"
             + "".join(children)
@@ -2105,7 +2118,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
             )
         xml = (
             "                          <p:par>\n"
-            f'                            <p:cTn id="{ctn_id}" presetID="10" presetClass="entr" presetSubtype="0" fill="hold" grpId="{grp}" nodeType="{node_type}">\n'
+            f'                            <p:cTn id="{ctn_id}" presetID="10" presetClass="entr" presetSubtype="0" fill="hold"{tmf} grpId="{grp}" nodeType="{node_type}">\n'
             f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
             "                              <p:childTnLst>\n"
             + "".join(children)
@@ -2151,7 +2164,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
         next_id = node_id + 3
         xml = (
             "                          <p:par>\n"
-            f'                            <p:cTn id="{ctn_id}" presetID="{preset_id}" presetClass="{preset_class}" presetSubtype="0" fill="hold" grpId="{grp}" nodeType="{node_type}">\n'
+            f'                            <p:cTn id="{ctn_id}" presetID="{preset_id}" presetClass="{preset_class}" presetSubtype="0" fill="hold"{tmf} grpId="{grp}" nodeType="{node_type}">\n'
             f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
             "                              <p:childTnLst>\n"
             "                                <p:set>\n"
@@ -2193,6 +2206,34 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
             "                          </p:par>"
         )
         return xml, next_id
+    # Emphasis: partial-opacity tween (Transparency, emph presetID 9) via
+    # p:anim style.opacity + tavLst. Gate-verified in desktop PowerPoint.
+    if effect == "transparency":
+        o_from = _alpha(animation.get("opacityFrom", animation.get("from", 1)))
+        o_to = _alpha(animation.get("opacityTo", animation.get("to", 0.5)))
+        ctn_id = node_id
+        beh_id = node_id + 1
+        next_id = node_id + 2
+        repeat = _repeat_attr(animation)
+        autorev = _autorev_attr(animation)
+        tmf = _tm_filter_attr(animation)
+        xml = (
+            "                          <p:par>\n"
+            f'                            <p:cTn id="{ctn_id}" presetID="9" presetClass="emph" presetSubtype="0" fill="hold"{tmf} grpId="{grp}" nodeType="{node_type}">\n'
+            f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
+            "                              <p:childTnLst>\n"
+            '                                <p:anim calcmode="lin" valueType="num">\n'
+            f'                                  <p:cBhvr override="childStyle"><p:cTn id="{beh_id}" dur="{duration}"{repeat}{ease}{autorev} fill="hold"/><p:tgtEl>{sp_tgt}</p:tgtEl><p:attrNameLst><p:attrName>style.opacity</p:attrName></p:attrNameLst></p:cBhvr>\n'
+            "                                  <p:tavLst>\n"
+            f'                                    <p:tav tm="0"><p:val><p:fltVal val="{o_from:g}"/></p:val></p:tav>\n'
+            f'                                    <p:tav tm="100000"><p:val><p:fltVal val="{o_to:g}"/></p:val></p:tav>\n'
+            "                                  </p:tavLst>\n"
+            "                                </p:anim>\n"
+            "                              </p:childTnLst>\n"
+            "                            </p:cTn>\n"
+            "                          </p:par>"
+        )
+        return xml, next_id
     # Emphasis: spin (animRot), grow/shrink/pulse (animScale).
     if effect in {"spin", "grow", "shrink", "pulse"}:
         ctn_id = node_id
@@ -2228,7 +2269,7 @@ def _animation_node_xml(animation: dict[str, Any], node_id: int, node_type: str)
             preset_id = 6
         xml = (
             "                          <p:par>\n"
-            f'                            <p:cTn id="{ctn_id}" presetID="{preset_id}" presetClass="emph" presetSubtype="0" fill="hold" grpId="{grp}" nodeType="{node_type}">\n'
+            f'                            <p:cTn id="{ctn_id}" presetID="{preset_id}" presetClass="emph" presetSubtype="0" fill="hold"{tmf} grpId="{grp}" nodeType="{node_type}">\n'
             f'                              <p:stCondLst><p:cond delay="{delay}"/></p:stCondLst>\n'
             "                              <p:childTnLst>\n"
             + inner
@@ -2343,7 +2384,7 @@ def _build_reveal_effect(animation: dict[str, Any]) -> str:
     return effect
 
 
-_EMPHASIS_EFFECTS = {"spin", "grow", "shrink", "pulse"}
+_EMPHASIS_EFFECTS = {"spin", "grow", "shrink", "pulse", "transparency"}
 _MEDIA_COMMAND_EFFECTS: dict[str, str] = {
     "mediaPlay": "playFrom(0.0)",
     "mediaPause": "togglePause",
@@ -2358,7 +2399,7 @@ def _is_entrance_effect(effect: str) -> bool:
 def _is_supported_effect(effect: str) -> bool:
     if effect in _MEDIA_COMMAND_EFFECTS:
         return True
-    if effect in {"appear", "motionPath", "recolor", "compose"} or effect in _EMPHASIS_EFFECTS or effect in _MOTION_ENTRANCES:
+    if effect in {"appear", "motionPath", "recolor", "compose", "transparency"} or effect in _EMPHASIS_EFFECTS or effect in _MOTION_ENTRANCES:
         return True
     base = effect[len("exit-"):] if effect.startswith("exit-") else effect
     return base in _ANIM_EFFECT_FILTERS
@@ -2381,6 +2422,8 @@ def _animation_effect(animation: dict[str, Any]) -> str:
         return "mediaStop"
     if lowered in {"motion", "motion-path", "motionpath", "path"}:
         return "motionPath"
+    if lowered in {"transparency", "dim", "emphasis-transparency", "emphasis-dim"}:
+        return "transparency"
     if lowered in {"spin", "rotate", "emphasis-spin"}:
         return "spin"
     if lowered in {"grow", "grow-shrink", "growshrink", "scale-up", "scaleup", "emphasis-grow"}:
@@ -2556,6 +2599,18 @@ def _rotation_attr(value: Any) -> str:
     if abs(degrees) < 0.001:
         return ""
     return f' rot="{int(round(degrees * 60000))}"'
+
+
+def _tm_filter_attr(animation: dict[str, Any]) -> str:
+    """Optional tmFilter time-remap on the effect cTn: '0,0; .25,.07; ...; 1,1'.
+
+    This is the exact-easing bridge (parity ladder T1): an arbitrary
+    cubic-bezier/linear() curve sampled to piecewise-linear pairs. Verified
+    accepted by desktop PowerPoint (gate-test 2026-07-26)."""
+    raw = str(animation.get("tmFilter") or "").strip()
+    if not raw:
+        return ""
+    return f' tmFilter="{_e(raw)}"'
 
 
 def _ease_attr(animation: dict[str, Any]) -> str:

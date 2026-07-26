@@ -54,6 +54,7 @@ async function main() {
 
 function normalizeDom() {
   const corrections = [];
+  let sampledMotionSeq = 0;
   const nativeSelector = ".ppt-shape,.ppt-textbox,.ppt-line";
   const nativeTags = new Set(["ppt-shape", "ppt-textbox", "ppt-line"]);
   // Any declared data-shape is honored — the compiler passes the full OOXML preset
@@ -487,6 +488,14 @@ function normalizeDom() {
       const intent = cssAnimationIntentAt(st, i);
       if (intent) intents.push(intent);
     }
+    // CSS iteration-count:infinite IS an ambient declaration: stamp the purpose
+    // so every downstream layer (DSL hygiene clamp, html2scene ambient flag,
+    // guards) exempts the loop instead of clamping it to two iterations.
+    if (intents.some((s) => s.includes("repeat:infinite")) &&
+        !el.hasAttribute("data-ppt-motion-purpose") && !el.hasAttribute("data-motion-purpose") &&
+        !el.hasAttribute("data-ppt-ambient")) {
+      el.setAttribute("data-ppt-motion-purpose", "ambient");
+    }
     return intents.length ? intents.join(" | ") : null;
   }
   function geometryProps(el) {
@@ -725,11 +734,21 @@ function normalizeDom() {
       add(el, "drop-banned-css", "replaced scrollable overflow with hidden");
     }
     if ((hasAnimation || hasTransition) && !mappedAnimationIntent && !el.hasAttribute("data-ppt-anim") && !el.hasAttribute("data-ppt-build")) {
-      el.style.animation = "none";
-      el.style.animationName = "none";
-      el.style.transition = "none";
-      el.style.transitionProperty = "none";
-      add(el, "drop-banned-css", "removed undeclared CSS animation/transition");
+      if (hasAnimation) {
+        // Keep the live CSS animation and tag it for browser sampling: the
+        // extractor scrubs it via the Web Animations API and compiles the
+        // sampled channels natively. Dropping it here would be a silent loss.
+        el.setAttribute("data-ppt-motion-sampled", "1");
+        if (!el.id) el.id = `ppt-m${(sampledMotionSeq += 1)}`;
+        el.style.transition = "none";
+        el.style.transitionProperty = "none";
+        add(el, "sample-css-motion",
+          "kept unmapped CSS animation for browser sampling (compiled from sampled keyframes)");
+      } else {
+        el.style.transition = "none";
+        el.style.transitionProperty = "none";
+        add(el, "drop-banned-css", "removed undeclared CSS transition (no state change to play in a static deck)");
+      }
     }
   }
   function animParts(raw) {
@@ -746,7 +765,7 @@ function normalizeDom() {
   function fixDslAnim(el) {
     const raw = el.getAttribute("data-ppt-anim");
     if (!raw) return;
-    let changed = false;
+    const notes = [];
     const elegant = isElegantMotion(el);
     const lineLike = isLineLike(el);
     const out = animSegments(raw).map((seg) => animParts(seg).map((p) => {
@@ -756,27 +775,31 @@ function normalizeDom() {
         const v = p.slice(i + 1).trim();
         const key = k.toLowerCase();
         const val = compactToken(v);
-        if ((key === "entrance" || key === "exit") && EMPHASIS.has(val)) { changed = true; return `emphasis:${val}`; }
+        if ((key === "entrance" || key === "exit") && EMPHASIS.has(val)) {
+          notes.push(`${key}:${val} reclassified as emphasis:${val}`);
+          return `emphasis:${val}`;
+        }
         if (elegant && (key === "entrance" || key === "exit") && DECORATIVE_REVEALS.has(val)) {
-          changed = true;
-          return `${k}:${lineLike ? "wipe" : "fade"}`;
+          const to = lineLike ? "wipe" : "fade";
+          notes.push(`elegant preset remapped decorative ${key}:${val} to ${key}:${to}`);
+          return `${k}:${to}`;
         }
         if (elegant && key === "emphasis" && val === "spin" && !allowsFlourish(el) && !allowsAmbient(el)) {
-          changed = true;
+          notes.push("elegant preset softened spin to pulse (mark data-ppt-motion-purpose=dial/loader/... to keep it)");
           return "emphasis:pulse";
         }
-        if (elegant && key === "repeat" && !allowsAmbient(el)) {
+        if (elegant && key === "repeat" && !allowsAmbient(el) && !allowsFlourish(el)) {
           const n = Number(v);
           if (val === "infinite" || (Number.isFinite(n) && n > 2)) {
-            changed = true;
+            notes.push(`elegant preset clamped repeat:${val} to 2 (mark ambient/flourish purpose to keep loops)`);
             return "repeat:2";
           }
         }
         return p;
       }).join("; "));
-    if (changed) {
+    if (notes.length) {
       el.setAttribute("data-ppt-anim", out.join(" | "));
-      add(el, "normalize-anim", "normalized animation DSL for PPT motion hygiene");
+      add(el, "normalize-anim", notes.join("; "));
     }
   }
   // A Morph object must not carry entrance/exit — Morph owns its motion.
@@ -845,6 +868,31 @@ function normalizeDom() {
   fixMorphSlideTiming();
   for (const el of [...document.querySelectorAll(nativeSelector)]) {
     fixNativeGeometry(el);
+  }
+
+  // Charset hygiene: this DOM is re-serialized as UTF-8 bytes, so any original
+  // non-UTF-8 charset label (gbk/big5/shift_jis) would lie to every downstream
+  // Chromium load and guarantee mojibake. Force an explicit utf-8 declaration.
+  {
+    const head = document.head || document.documentElement;
+    let stale = false;
+    for (const meta of [...document.querySelectorAll("meta[charset], meta[http-equiv]")]) {
+      const httpEquiv = (meta.getAttribute("http-equiv") || "").toLowerCase();
+      if (meta.hasAttribute("charset")) {
+        if ((meta.getAttribute("charset") || "").toLowerCase() !== "utf-8") stale = true;
+        meta.remove();
+      } else if (httpEquiv === "content-type") {
+        stale = true;
+        meta.remove();
+      }
+    }
+    const meta = document.createElement("meta");
+    meta.setAttribute("charset", "utf-8");
+    head.insertBefore(meta, head.firstChild);
+    if (stale) {
+      corrections.push({ rule: "charset-utf8", selector: "head",
+        message: "replaced non-utf-8 charset declaration; normalized output is always UTF-8 bytes" });
+    }
   }
 
   return { html: document.documentElement.outerHTML, corrections };

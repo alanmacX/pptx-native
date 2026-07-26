@@ -4,6 +4,7 @@ const path = require("path");
 const { pathToFileURL } = require("url");
 const { chromium } = require("playwright");
 const { applyGuards } = require("./ppt_guards.cjs");
+const { sampleMotionInPage, fitSampledTracks } = require("./motion_sampler.cjs");
 
 function parseArgs(argv) {
   const args = {
@@ -128,12 +129,29 @@ async function main() {
     () => typeof window.goToStep === "function" || typeof window.next === "function"
   );
 
+  let sampledTracks = [];
   if (!hasStepFlow) {
+    // Sample tagged CSS animations BEFORE settleAnimations freezes them: the
+    // browser is the ground truth for keyframes the normalizer could not map.
+    try {
+      sampledTracks = await page.evaluate(sampleMotionInPage);
+    } catch (e) {
+      sampledTracks = [];
+    }
     const slideCount = Math.max(sectionCount, 1);
+    const slideEls = await page.$$(".ppt-slide, [data-ppt='slide']");
     for (let i = 0; i < slideCount; i += 1) {
       if (args.settleAnimations) { await page.evaluate(settleAnimations); await page.waitForTimeout(30); }
+      // QA screenshots per slide element (sections model: every .ppt-slide is
+      // one slide on the same page, so a full-page shot would not isolate it).
+      const shot = args.screenshots
+        ? path.resolve(args.screenshots, `html-step-${String(i).padStart(2, "0")}.png`) : null;
+      if (shot) {
+        if (slideEls[i]) await slideEls[i].screenshot({ path: shot });
+        else await page.screenshot({ path: shot, fullPage: false });
+      }
       const slide = await page.evaluate(extractSlide, {
-        step: i, slideIndex: i, maxElements: args.maxElements,
+        step: i, slideIndex: i, maxElements: args.maxElements, screenshot: shot,
       });
       irSlides.push(slide);
     }
@@ -167,6 +185,7 @@ async function main() {
     },
     slides: irSlides,
     animations: await page.evaluate(extractAnimations),
+    sampledMotion: sampledTracks,
   };
   const scene = buildAuthorScene(ir);
   applyGuards(scene); // centralized deterministic conflict/cleanup rules
@@ -330,10 +349,24 @@ function extractSlide(opts) {
       const cm = tok.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/);
       if (!cm) return null;
       const col = cssColor(cm[0]);
-      if (!col.hex || col.alpha <= 0.015) return null;
+      if (!col.hex) return null;
       const pm = tok.slice(cm.index + cm[0].length).match(/(-?[\d.]+)%/);
       return { ...col, pos: pm ? Math.max(0, Math.min(100, parseFloat(pm[1]))) : null };
     }).filter(Boolean).slice(0, 8);
+    // Transparent stops are kept (OOXML gsLst supports per-stop <a:alpha>), but
+    // a fully-transparent stop's hue must borrow the nearest visible neighbor's:
+    // OOXML interpolates color and alpha in non-premultiplied space, so fading
+    // to rgba(0,0,0,0) would pass through black instead of just fading out.
+    const visible = stops.filter((s) => s.alpha > 0.015);
+    if (visible.length === 0) return null; // invisible in the browser too
+    stops.forEach((s, i) => {
+      if (s.alpha > 0.015) return;
+      let donor = null;
+      for (let d = 1; d < stops.length && !donor; d += 1) {
+        donor = [stops[i - d], stops[i + d]].find((n) => n && n.alpha > 0.015) || null;
+      }
+      if (donor) s.hex = donor.hex;
+    });
     if (stops.length < 2) return null;
     return { type, angle, colors: stops };
   };
@@ -354,7 +387,10 @@ function extractSlide(opts) {
   const textColorFor = (style, background) => {
     const textFill = cssColor(style.webkitTextFillColor);
     if (textFill.hex && textFill.alpha > 0.015) return textFill;
-    if (background?.clipText && background.gradient?.colors?.length) return background.gradient.colors[0];
+    if (background?.clipText && background.gradient?.colors?.length) {
+      const firstVisible = background.gradient.colors.find((c) => c.alpha > 0.015);
+      if (firstVisible) return firstVisible;
+    }
     return cssColor(style.color);
   };
   const px = (value) => {
@@ -1032,7 +1068,8 @@ async function settleAnimations() {
 }
 
 function buildAuthorScene(ir) {
-  const slides = ir.slides.map((slide) => {
+  const sampledFit = fitSampledTracks(ir.sampledMotion || []);
+  const slides = ir.slides.map((slide, slideIdx) => {
     const elements = [];
     let compiledSvgElements = 0;
     const slideBg = slide.background || {};
@@ -1192,6 +1229,14 @@ function buildAuthorScene(ir) {
     applyPptEffects(slide, elements);
     const firstStep = ir.slides[0]?.step;
     const animations = slideAnimationsFor(slide, elements);
+    // Sampled-motion rows join AFTER afterPrev resolution: their delays are
+    // absolute CSS timings. Disjoint from declared rows by construction (the
+    // normalizer only tags elements without data-ppt-anim/build).
+    for (const row of sampledFit.rowsBySlide.get(slideIdx) || []) {
+      const resolved = resolveSampledTarget(elements, row.target);
+      if (resolved) animations.push({ ...row, target: resolved });
+      else sampledFit.notes.push(`sampled motion target ${row.target} has no compiled element on slide ${slideIdx + 1}`);
+    }
     const transition = pptTransitionFor(slide, slide.step === firstStep);
     const autoMorph = !!(transition && typeof transition === "object" && transition.auto);
     return {
@@ -1218,6 +1263,14 @@ function buildAuthorScene(ir) {
     source: ir.source,
     extractor: "tools/html2scene.cjs",
     contract: ir.contract,
+    // Disposition ledger for browser-sampled motion: how many tagged CSS
+    // animations were sampled, how many compiled to native rows, and a note
+    // for every one that could not land (never a silent drop).
+    sampledMotion: {
+      tracks: (ir.sampledMotion || []).length,
+      compiled: [...sampledFit.rowsBySlide.values()].reduce((n, rows) => n + rows.length, 0),
+      notes: sampledFit.notes,
+    },
     size: {
       cx: 12192000,
       cy: 6858000,
@@ -1292,12 +1345,48 @@ function pptTransitionFor(slide, isFirst) {
 function slideAnimationsFor(slide, elements) {
   // Animations come only from agent-declared data-ppt-* intent. The compiler
   // never choreographs a specific deck for the agent.
-  return dedupeAnimations([
+  return resolveAfterPrev(dedupeAnimations([
     ...declaredPptAmbients(slide, elements),
     ...declaredPptAnimations(slide, elements),
     ...declaredPptSequences(slide, elements),
     ...declaredPptMotifs(slide, elements),
-  ]);
+  ]));
+}
+
+// Resolve afterPrevious chaining to absolute delays. The writer emits every
+// non-click row into one slide-begin group, so an unresolved afterPrevious
+// would fire at t=0 alongside everything else. Rows form blocks: an
+// afterPrevious leader plus the withPrevious rows that follow it (motifs and
+// sequences emit exactly this shape, with block-relative delays). The block
+// start anchors to the END of the previous non-ambient row; withPrevious rows
+// shift by the same amount (PowerPoint measures their delay from the previous
+// item's start). Ambient rows never advance the cursor: background loops must
+// not stall foreground builds. onClick starts a fresh clock.
+function resolveAfterPrev(rows) {
+  let prevEnd = 0;
+  let blockShift = 0;
+  for (const row of rows) {
+    const trigger = String(row.trigger || "");
+    const own = numberOr(row.delayMs, 0);
+    if (trigger === "onClick") {
+      prevEnd = 0;
+      blockShift = 0;
+      if (!row.ambient) prevEnd = own + numberOr(row.durationMs, 500);
+      continue;
+    }
+    if (trigger === "afterPrevious") {
+      blockShift = prevEnd;
+      row.delayMs = blockShift + own;
+      row.trigger = "withPrevious";
+    } else {
+      row.delayMs = blockShift + own;
+    }
+    if (!row.ambient) {
+      const dur = numberOr(row.durationMs, 500);
+      prevEnd = Math.max(prevEnd, row.delayMs + dur);
+    }
+  }
+  return rows;
 }
 
 // ---- Motif choreography -----------------------------------------------------
@@ -1696,6 +1785,16 @@ function pptAnimToIntent(d) {
   if (d.appear !== undefined) return { ...base, effect: "appear" };
   if (d.exit) return { ...base, effect: `exit-${String(d.exit)}` };
   if (d.emphasis) {
+    const name = compactToken(d.emphasis);
+    // Transparency dim (native emph presetID 9 via p:anim style.opacity).
+    if (name === "transparency" || name === "dim" || name === "opacity") {
+      return {
+        ...base,
+        effect: "transparency",
+        opacityFrom: numberOr(d.from, 1),
+        opacityTo: numberOr(d.to, 0.35),
+      };
+    }
     const out = { ...base, effect: String(d.emphasis) };
     if (d.spins != null) out.spins = Number(d.spins);
     if (d.byDeg != null) out.byDeg = Number(d.byDeg);
@@ -1724,6 +1823,13 @@ function isAmbientPurpose(value) {
   return /^(ambient|background|backdrop|loop|atmosphere|texture|bg)$/i.test(compactToken(value));
 }
 
+// A flourish purpose marks a genuinely rotating/looping object (dial, loader,
+// gear...). The docs promise these survive the elegant preset; the flag rides
+// the animation rows so ppt_guards can honor the promise.
+function isFlourishPurpose(value) {
+  return /^(dial|clock|loader|spinner|rotation|orbit|wheel|gauge|gear|fan|compass|radar)$/i.test(compactToken(value));
+}
+
 function declaredPptAnimations(slide, elements) {
   const rows = [];
   for (const el of authoredNativeSources(slide)) {
@@ -1743,7 +1849,15 @@ function declaredPptAnimations(slide, elements) {
     if (el.pptAnimRaw) {
       // A "|"-separated list chains multiple animations on one element, in order
       // (rise | pulse | exit) — the engine's coherent multi-animation primitive.
-      for (const intent of pptAnimIntents(el.pptAnimRaw)) rows.push({ ...intent, target: source.key, ...(ambient ? { ambient: true } : {}) });
+      const flourish = isFlourishPurpose(el.motionPurposeRaw);
+      for (const intent of pptAnimIntents(el.pptAnimRaw)) {
+        rows.push({
+          ...intent,
+          target: source.key,
+          ...(ambient ? { ambient: true } : {}),
+          ...(flourish ? { flourish: true } : {}),
+        });
+      }
     }
     if (el.pptBuildRaw) {
       const d = parsePptDecl(el.pptBuildRaw);
@@ -1881,6 +1995,21 @@ function animationTargetForElement(element) {
 function animationTargetExists(elements, target) {
   const key = String(target || "");
   return elements.some((element) => animationTargetForElement(element) === key);
+}
+
+// Sampled tracks reference the DOM element (#id); the compiled element may
+// carry a derived key (text runs become "#id/text-flow"). Resolve to the
+// compiled element's actual target key.
+function resolveSampledTarget(elements, target) {
+  const key = String(target || "");
+  if (animationTargetExists(elements, key)) return key;
+  const prefix = `${key}/`;
+  const id = key.startsWith("#") ? key.slice(1) : key;
+  const match = elements.find((element) => {
+    const elKey = animationTargetForElement(element) || "";
+    return elKey.startsWith(prefix) || String(element?.source?.id || "") === id;
+  });
+  return match ? animationTargetForElement(match) : null;
 }
 
 function dedupeAnimations(rows) {
@@ -2234,6 +2363,12 @@ function isDecorativeText(text) {
 }
 
 function buildReport(ir, scene) {
+  const sampledFit = fitSampledTracks(ir.sampledMotion || []);
+  const sampledMotion = {
+    tracks: (ir.sampledMotion || []).length,
+    compiled: [...sampledFit.rowsBySlide.values()].reduce((n, rows) => n + rows.length, 0),
+    notes: sampledFit.notes,
+  };
   const unsupported = {
     svgElements: scene.slides.reduce((n, s) => n + (s.unsupported?.svgElements || 0), 0),
     images: ir.slides.reduce((n, s) => n + s.images.filter((image) => !isSupportedImageSrc(image.src)).length, 0),
@@ -2278,6 +2413,7 @@ function buildReport(ir, scene) {
     nativeImages: scene.slides.reduce((n, s) => n + s.elements.filter((el) => el.type === "image").length, 0),
     nativeMedia: scene.slides.reduce((n, s) => n + s.elements.filter((el) => el.type === "media").length, 0),
     unsupported,
+    sampledMotion,
     keyframes: ir.animations.keyframes.map((k) => k.name),
     motionCandidates: motionCandidates.slice(0, 200),
     message: "This is a frontend-derived structural extraction report. HTML screenshots are QA evidence only; the compiler must not use image references or raster fallbacks.",

@@ -48,6 +48,7 @@ function parseArgs(argv) {
     const next = argv[i + 1];
     if (arg === "--html") args.html = next, i += 1;
     else if (arg === "--html-dir") args.htmlDir = next, i += 1;
+    else if (arg === "--ppt-dir") args.pptDir = next, i += 1;
     else if (arg === "--pptx") args.pptx = next, i += 1;
     else if (arg === "--out") args.out = next, i += 1;
     else if (arg === "--steps") args.steps = next, i += 1;
@@ -94,6 +95,9 @@ function run(cmd, argv, opts = {}) {
     encoding: opts.encoding || "utf8",
     stdio: opts.stdio || "pipe",
     env: { ...process.env, ...(opts.env || {}) },
+    // AppleScript automation can wedge on a lingering PowerPoint dialog; fail
+    // loudly instead of hanging the whole QA run.
+    timeout: opts.timeoutMs || 180000,
   });
 }
 
@@ -201,11 +205,16 @@ async function compareOne({ step, htmlFile, pptFile, diffFile, contactFile, widt
   });
   const channel = computeChannels(html.data, ppt.data);
   await sharp(diff, { raw: { width, height, channels: 4 } }).png().toFile(diffFile);
+  // Composite from the normalized raw buffers: the source files may be larger
+  // than a contact cell (e.g. 1280x720 element screenshots vs 1200x675 cells).
+  const rawOpts = { raw: { width, height, channels: 4 } };
+  const htmlPng = await sharp(html.data, rawOpts).png().toBuffer();
+  const pptPng = await sharp(ppt.data, rawOpts).png().toBuffer();
   await sharp({
     create: { width: width * 3, height, channels: 4, background: "#ffffff" },
   }).composite([
-    { input: htmlFile, left: 0, top: 0 },
-    { input: pptFile, left: width, top: 0 },
+    { input: htmlPng, left: 0, top: 0 },
+    { input: pptPng, left: width, top: 0 },
     { input: diffFile, left: width * 2, top: 0 },
   ]).png().toFile(contactFile);
   return {
@@ -258,8 +267,18 @@ function writeMarkdown(file, report) {
   fs.writeFileSync(file, lines.join("\n"), "utf8");
 }
 
-function pptName(slideNumber) {
-  return `ppt-slide-${String(slideNumber).padStart(2, "0")}.png`;
+function pptName(pptDir, slideNumber) {
+  // pdftoppm pads page numbers by TOTAL page count: a 6-page deck emits
+  // ppt-slide-1.png, a 12-page deck ppt-slide-01.png. Accept both.
+  const candidates = [
+    `ppt-slide-${slideNumber}.png`,
+    `ppt-slide-${String(slideNumber).padStart(2, "0")}.png`,
+    `ppt-slide-${String(slideNumber).padStart(3, "0")}.png`,
+  ];
+  for (const name of candidates) {
+    if (fs.existsSync(path.join(pptDir, name))) return name;
+  }
+  return candidates[0];
 }
 
 async function main() {
@@ -279,7 +298,11 @@ async function main() {
     htmlDir = path.resolve(args.htmlDir || path.join(outDir, "html"));
   }
 
-  const { pptDir, pdf } = renderPpt(args, outDir);
+  // --ppt-dir supplies pre-rendered ppt-slide-*.png frames (e.g. when the
+  // AppleScript export ran separately or on another machine).
+  const { pptDir, pdf } = args.pptDir
+    ? { pptDir: path.resolve(args.pptDir), pdf: null }
+    : renderPpt(args, outDir);
   const diffDir = path.join(outDir, "diff");
   const contactDir = path.join(outDir, "contact");
   ensureEmptyDir(diffDir);
@@ -288,7 +311,7 @@ async function main() {
   const results = [];
   for (const step of steps) {
     const htmlFile = path.join(htmlDir, `html-step-${String(step).padStart(2, "0")}.png`);
-    const pptFile = path.join(pptDir, pptName(step + 1));
+    const pptFile = path.join(pptDir, pptName(pptDir, step + 1));
     if (!fs.existsSync(htmlFile)) throw new Error(`Missing HTML screenshot: ${htmlFile}`);
     if (!fs.existsSync(pptFile)) throw new Error(`Missing PPT render: ${pptFile}`);
     results.push(await compareOne({

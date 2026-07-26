@@ -24,7 +24,7 @@ function loadVocab() {
   const fallback = {
     entrance: ["fade", "blinds", "box", "checkerboard", "circle", "diamond",
       "dissolve", "plus", "randombars", "wedge", "wheel", "wipe", "appear"],
-    emphasis: ["spin", "grow", "shrink", "pulse"],
+    emphasis: ["spin", "grow", "shrink", "pulse", "transparency", "dim", "opacity"],
     triggers: ["onClick", "withPrev", "withPrevious", "afterPrev", "afterPrevious", "auto"],
     shapes: ["rect", "roundRect", "ellipse", "line"],
   };
@@ -39,9 +39,15 @@ function loadVocab() {
       triggers.push(t);
       if (triggerAliases[t]) triggers.push(triggerAliases[t]);
     }
+    const emphasisAliases = { transparency: ["dim", "opacity"] };
+    const emphasis = [];
+    for (const e of w.emphasis || fallback.emphasis) {
+      emphasis.push(e);
+      for (const alias of emphasisAliases[e] || []) emphasis.push(alias);
+    }
     return {
       entrance: [...(w.entrance || fallback.entrance), "appear"],
-      emphasis: w.emphasis || fallback.emphasis,
+      emphasis,
       triggers: triggers.length ? triggers : fallback.triggers,
       shapes: caps.components?.shape?.presets || fallback.shapes,
     };
@@ -107,7 +113,7 @@ async function main() {
       "blinds", "box", "checkerboard", "circle", "diamond",
       "dissolve", "plus", "randombars", "wedge", "wheel",
     ]);
-    const emphasisEffects = new Set(["spin", "grow", "shrink", "pulse"]);
+    const emphasisEffects = new Set(["spin", "grow", "shrink", "pulse", "transparency", "dim", "opacity"]);
     const segmentEffect = (segment) => {
       const d = parseDecl(segment);
       const isCompose = d.compose !== undefined || d.combo !== undefined ||
@@ -298,7 +304,7 @@ async function main() {
         add(el, "error", "MORPH_OBJECT_ANIMATION",
           "A data-morph object must not also have entrance/exit animation.",
           "Remove entrance/exit from the morphing object; animate sibling labels or non-morph objects instead.");
-      if (hasAnim && !animDecl && !buildDecl)
+      if (hasAnim && !animDecl && !buildDecl && !el.hasAttribute("data-ppt-motion-sampled"))
         add(el, "error", "UNDECLARED_ANIMATION",
           "CSS animation/transition without data-ppt-* is not compiled.",
           "Declare intent, e.g. data-ppt-anim=\"entrance:fade; trigger:afterPrev\".");

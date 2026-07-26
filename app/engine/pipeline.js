@@ -136,6 +136,9 @@ function sceneStats(scene) {
     transitions: slides.filter((slide) => slide.transition).length,
     morphTransitions: slides.filter((slide) => String(slide.transition?.type || slide.transition || "").toLowerCase() === "morph").length,
     guards: scene.guards?.length || 0,
+    ...(scene.sampledMotion && scene.sampledMotion.tracks
+      ? { sampledMotion: scene.sampledMotion }
+      : {}),
   };
 }
 

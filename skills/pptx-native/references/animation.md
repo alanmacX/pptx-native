@@ -108,7 +108,20 @@ The author compiler now emits native `p:timing` for:
   with its own `grpId`. The per-paragraph reveal effect defaults to `fade` and is
   overridable with `buildEffect` (any supported entrance filter).
 - emphasis effects: `spin` (`p:animRot`, `spins`/`byDeg`), `grow`/`shrink`
-  (`p:animScale` with `scale` percent), and `pulse` (scale + `autoRev`).
+  (`p:animScale` with `scale` percent), `pulse` (scale + `autoRev`), and
+  `transparency` (aliases `dim`/`opacity`: partial-opacity tween a→b via
+  `p:anim style.opacity` + `tavLst`, Animation Pane "Transparency"; DSL
+  `emphasis:dim; to:0.35`, optional `from:`).
+- exact easing beyond accel/decel: an animation row may carry `tmFilter`
+  ("0,0; 0.25,0.07; …; 1,1") — a piecewise-linear time remap on the effect
+  node, the compile target for arbitrary `cubic-bezier()`/`linear()` curves.
+- browser-sampled motion: CSS animations the normalizer cannot statically map
+  are no longer dropped — they are tagged `data-ppt-motion-sampled`, scrubbed
+  in-session via the Web Animations API (`tools/motion_sampler.cjs`), and
+  lowered onto the row surface above (compose / motionPath / fade / spin /
+  pulse / transparency, with fitted ease or exact `tmFilter`). Tracks that
+  cannot land are reported in the build report under `stats.sampledMotion`
+  — never silently lost.
 - `motionPath` when a raw PowerPoint `pptPath`/`path` is supplied.
 - `compose` for one concurrent native timing group combining visibility/fade,
   motion path, scale, rotation, and fill-color change. This is the bridge from
