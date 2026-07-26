@@ -367,9 +367,18 @@ Each milestone ships user-visible value; nothing waits for the whole design.
    - font size (28→72px): **TWEENS** (crisp intermediate sizes, no ghosting).
    - picture crop `srcRect` (full→top-left quadrant): **TWEENS** — the native
      ken-burns path is OPEN. Writer gap: author.py never emits srcRect yet.
-   - sp3d camera: untested (writer cannot express sp3d; hand-inject later).
+   - sp3d camera rotation (perspectiveFront lon 0°→50°, hand-injected):
+     **TWEENS** — real 3D swivel with consistent lighting; the T3 3D-flip rung
+     is OPEN (writer support for scene3d from CSS perspective/rotateY queued).
    Still open: group-children matching; whether source-side entrance
    animations break matching (and which kinds).
+6. advTm hands-free chains — **RESULTS (movie lane)**: 3-hop morph chain plays
+   at a consistent cadence (advTm + morph duration per hop, ±100ms at frame
+   granularity). CAVEAT: in the movie-EXPORT lane, advTm does NOT wait for a
+   still-running main sequence (a 2s animation was cut at the 800ms timer) —
+   contrary to documented live-slideshow behavior. The T3 splitter must set
+   advTm ≥ the slide's animation end time itself (as designed). Live-slideshow
+   wait behavior remains unverified (needs screen capture).
 6. `advTm` vs still-running main sequence; ms precision drift across a
    10-slide chain; kiosk mode; Presenter View behavior on keyframe chains.
 7. Flipbook scheduling precision: 24-step 10ms-class stagger drift, measured

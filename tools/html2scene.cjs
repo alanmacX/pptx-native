@@ -1409,19 +1409,25 @@ function pptTransitionFor(slide, isFirst) {
       d[part.slice(0, i).trim()] = part.slice(i + 1).trim();
     }
     const type = (d.type || d.transition || "morph").toLowerCase();
-    if (type === "none") return undefined;
+    // advance:N auto-advances THIS slide after N ms (advTm; the timer starts
+    // once the slide's last animation finishes) — the hands-free chain enabler.
+    const advanceMs = numberOr(firstDefined(d.advance, d.advTm, d.advanceMs), null);
+    const advance = advanceMs != null ? { advanceAfterMs: advanceMs } : {};
+    if (type === "none") return advanceMs != null ? { type: "none", ...advance } : undefined;
     if (type === "morph" || type === "smooth" || type === "平滑") {
       return {
         type: "morph",
         option: d.option || "byObject",
         durationMs: Number(d.dur || d.durationMs || 1000),
         speed: d.speed || "slow",
+        ...advance,
         // auto:true lets the compiler match carried objects to the previous
         // slide automatically (no per-object data-morph). Inference + matching
         // run on the assembled scene in pptx_native._infer_morph_keys.
         auto: /^(true|1|yes|on)$/i.test(String(d.auto || "")),
       };
     }
+    if (advanceMs != null) return { type, ...advance };
     return type; // fade/push/wipe/split
   }
   if (isFirst) return "fade";

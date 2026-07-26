@@ -129,6 +129,11 @@ The author compiler now emits native `p:timing` for:
   file to fill) + `swift tools/ppt_movie_frames.swift deck.mov outdir [fps]`
   extracts exact-time frames for playback verification. Click-triggered
   sequences correctly do NOT fire in exported video.
+- auto-advance: `advance:N` in `data-ppt-transition` emits `advTm` on the
+  slide (hands-free chains; `type:none; advance:N` gives a timer with no
+  visual transition). Movie-lane verified: chain cadence is consistent, BUT in
+  exported video advTm does NOT wait for running animations — set advance ≥
+  the slide's animation end time.
 - native picture crop + ken-burns: `object-fit:cover` and overflow:hidden
   container clipping compile to `a:srcRect` (composable; element geometry
   becomes the visible intersection). Morph TWEENS srcRect (gate-verified), so

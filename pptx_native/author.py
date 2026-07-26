@@ -1653,6 +1653,7 @@ def _dash_xml(value: Any, pad: str) -> str:
 def _transition_xml(value: Any) -> str:
     if not value:
         return ""
+    advance = ""
     if isinstance(value, str):
         kind = value
         speed = "fast"
@@ -1663,22 +1664,30 @@ def _transition_xml(value: Any) -> str:
         speed = value.get("speed", "fast")
         duration = _ms(value.get("durationMs", value.get("duration", 1000)), 1000)
         option = _morph_option(value.get("option", value.get("morph", "byObject")))
+        adv_ms = value.get("advanceAfterMs")
+        if adv_ms is not None:
+            # advTm auto-advances the slide this transition element sits ON
+            # (the timer starts after the slide's last animation finishes).
+            advance = f' advTm="{_ms(adv_ms, 0)}"'
     normalized = str(kind).strip().lower()
     if normalized in {"morph", "smooth", "平滑"}:
-        return _morph_transition_xml(speed, duration, option)
+        return _morph_transition_xml(speed, duration, option, advance)
+    if normalized in {"none", "cut"} and advance:
+        # advance-only slide: no visual transition, just the auto-advance timer.
+        return f"  <p:transition{advance}/>\n"
     kind = kind if kind in _TRANSITION_TYPES else "fade"
-    return f'  <p:transition spd="{_e(str(speed))}"><p:{kind}/></p:transition>\n'
+    return f'  <p:transition spd="{_e(str(speed))}"{advance}><p:{kind}/></p:transition>\n'
 
 
-def _morph_transition_xml(speed: Any, duration_ms: int, option: str) -> str:
+def _morph_transition_xml(speed: Any, duration_ms: int, option: str, advance: str = "") -> str:
     return (
         '  <mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" '
         'xmlns:p159="http://schemas.microsoft.com/office/powerpoint/2015/09/main">\n'
         "    <mc:Choice Requires=\"p159\">\n"
-        f'      <p:transition spd="{_e(str(speed))}" xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" p14:dur="{duration_ms}"><p159:morph option="{_e(option)}"/></p:transition>\n'
+        f'      <p:transition spd="{_e(str(speed))}"{advance} xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" p14:dur="{duration_ms}"><p159:morph option="{_e(option)}"/></p:transition>\n'
         "    </mc:Choice>\n"
         "    <mc:Fallback>\n"
-        f'      <p:transition spd="{_e(str(speed))}"><p:fade/></p:transition>\n'
+        f'      <p:transition spd="{_e(str(speed))}"{advance}><p:fade/></p:transition>\n'
         "    </mc:Fallback>\n"
         "  </mc:AlternateContent>\n"
     )
