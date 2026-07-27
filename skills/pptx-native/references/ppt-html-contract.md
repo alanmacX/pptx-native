@@ -200,6 +200,21 @@ Mark a shape-drawn chart container with `data-ppt-role="chart"` and state the
 claim it proves in `data-ppt-evidence="..."`. A chart without a named evidence
 claim triggers `AI_CHART_DECORATION`; if no precise claim fits, remove it.
 
+### Creative-direction metadata
+
+Use `data-ppt-creative-direction="<visual thesis>"` on `<html>` or `<body>` to
+name the deck's visual concept. This is planning metadata; it does not apply a
+theme.
+
+Use `data-ppt-design-rationale="<specific purpose>"` on a slide when a
+deliberate composition may trigger an aesthetic advisory, such as systematic
+grid repetition or a repeated title ritual. A deck-level rationale may sit on
+`<html>` or `<body>` when the exception is truly global. The linter requires a
+non-trivial reason before it suppresses applicable repetition advisories.
+
+This attribute cannot waive geometry, readability, evidence, native-loss, or
+motion-continuity findings. See `creative-direction.md`.
+
 ### Native 3D, picture crop, and ken-burns
 
 - `transform: perspective(800px) rotateY(-18deg)` (or `rotateX`) on a shape or

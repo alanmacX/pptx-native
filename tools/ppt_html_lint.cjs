@@ -19,14 +19,47 @@ const path = require("path");
 const { pathToFileURL } = require("url");
 const { chromium } = require("playwright");
 
+function loadLayoutSpecs() {
+  const fallback = {
+    cover: { family: "opening", requiredRegions: ["title"], maxTitleLines: 2 },
+    statement: { family: "assertion", requiredRegions: ["title"], maxTitleLines: 2 },
+    split: { family: "media", requiredRegions: ["copy", "media"], maxTitleLines: 2 },
+    editorial: { family: "media", requiredRegions: ["title", "media"], maxTitleLines: 1 },
+    "hero-media": { family: "media", requiredRegions: ["media", "title"], maxTitleLines: 2 },
+    metric: { family: "data", requiredRegions: ["title", "metric"], maxTitleLines: 1 },
+    comparison: { family: "relation", requiredRegions: ["left", "right"], maxTitleLines: 1 },
+    timeline: { family: "sequence", requiredRegions: ["canvas"], maxTitleLines: 1 },
+    process: { family: "sequence", requiredRegions: ["canvas"], maxTitleLines: 1 },
+    evidence: { family: "media", requiredRegions: ["visual", "interpretation"], maxTitleLines: 1 },
+    gallery: { family: "media", requiredRegions: ["primary"], maxTitleLines: 1 },
+    matrix: { family: "relation", requiredRegions: ["canvas"], maxTitleLines: 1 },
+    closing: { family: "closing", requiredRegions: ["title"], maxTitleLines: 2 },
+    custom: { family: "custom", requiredRegions: [], maxTitleLines: 2 },
+  };
+  const candidates = [
+    path.resolve(__dirname, "..", "skills", "pptx-native", "references", "layout-presets.json"),
+    path.resolve(__dirname, "..", "..", "..", "references", "layout-presets.json"),
+    path.resolve(__dirname, "..", "references", "layout-presets.json"),
+  ];
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(candidate, "utf8"));
+      if (parsed && parsed.presets && typeof parsed.presets === "object") return parsed.presets;
+    } catch { /* try the next location */ }
+  }
+  return fallback;
+}
+
 // Valid DSL vocab, sourced from capabilities.json when available.
 function loadVocab() {
+  const layouts = loadLayoutSpecs();
   const fallback = {
     entrance: ["fade", "blinds", "box", "checkerboard", "circle", "diamond",
       "dissolve", "plus", "randombars", "wedge", "wheel", "wipe", "appear"],
     emphasis: ["spin", "grow", "shrink", "pulse", "transparency", "dim", "opacity"],
     triggers: ["onClick", "withPrev", "withPrevious", "afterPrev", "afterPrevious", "auto"],
     shapes: ["rect", "roundRect", "ellipse", "line"],
+    layouts,
   };
   // DSL accepts short aliases for the canonical capability trigger names.
   const triggerAliases = { withPrevious: "withPrev", afterPrevious: "afterPrev" };
@@ -50,6 +83,7 @@ function loadVocab() {
       emphasis,
       triggers: triggers.length ? triggers : fallback.triggers,
       shapes: caps.components?.shape?.presets || fallback.shapes,
+      layouts,
     };
   } catch {
     return fallback;
@@ -93,6 +127,13 @@ async function main() {
     };
     const add = (el, level, rule, message, fix) =>
       out.push({ selector: sel(el), level, rule, message, fix });
+    const designRationale = (el) => {
+      const owner = el?.closest?.("[data-ppt-design-rationale]") ||
+        document.body?.closest?.("[data-ppt-design-rationale]") ||
+        document.documentElement;
+      return String(owner?.getAttribute?.("data-ppt-design-rationale") || "").trim();
+    };
+    const hasDesignRationale = (el) => designRationale(el).length >= 6;
 
     const parseDecl = (v) => {
       const o = {};
@@ -106,6 +147,8 @@ async function main() {
     const animSegments = (v) => String(v || "").split("|").map((s) => s.trim()).filter(Boolean);
     const compactToken = (v) => String(v || "").trim().toLowerCase().replace(/[-_\s]/g, "");
     const knownMotionPresets = new Set(["elegant", "calm", "executive", "neutral", "technical", "expressive", "none"]);
+    const layoutSpecs = vocab.layouts || {};
+    const knownLayouts = new Set(Object.keys(layoutSpecs));
     const knownMotionIntents = new Set([
       "hierarchy", "flow", "sequence", "timeline", "comparison", "layers",
       "metriccluster", "hubspoke", "statechange", "gallery", "mediareveal", "ambient",
@@ -249,8 +292,13 @@ async function main() {
           add(el, "error", "NESTED_NATIVE",
             "Native objects nested inside .ppt-shape do not map cleanly to editable PPT objects.",
             "Make shapes/text sibling objects with their own absolute geometry.");
+        const presetRegion = el.hasAttribute("data-ppt-region") &&
+          Boolean(el.closest("[data-ppt-layout]"));
         for (const prop of geometryPropsFor(el)) {
           const value = styleDecl(el, prop);
+          const computedValue = String(st[prop] || "").trim();
+          if (!value && presetRegion && hasPxUnit(computedValue))
+            continue;
           if (!value)
             add(el, "error", "NATIVE_GEOMETRY",
               `Missing explicit ${prop} in inline style.`,
@@ -440,6 +488,124 @@ async function main() {
       .filter(Boolean);
     const slides = Array.from(document.querySelectorAll("section.ppt-slide,.ppt-slide,[data-ppt='slide'],section.slide"))
       .filter((slide, i, arr) => arr.indexOf(slide) === i);
+
+    // --- Guided composition pass ---------------------------------------------
+    // Layout presets are style-neutral silhouettes. They make the Agent name
+    // the information geometry it chose, while keeping palette/type/assets free.
+    {
+      const declared = [];
+      const lineCount = (el) => {
+        try {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          const tops = [];
+          for (const r of range.getClientRects()) {
+            if (r.width < 1 || r.height < 1) continue;
+            if (!tops.some((top) => Math.abs(top - r.top) < 2)) tops.push(r.top);
+          }
+          return Math.max(1, tops.length);
+        } catch {
+          return 1;
+        }
+      };
+      const exemptSmallText = new Set(["caption", "source", "footnote", "axis", "legend", "label", "context"]);
+
+      slides.forEach((slide, i) => {
+        const raw = String(slide.getAttribute("data-ppt-layout") || "").trim();
+        const layout = raw.toLowerCase();
+        if (!raw) return;
+        if (!knownLayouts.has(layout)) {
+          add(slide, "error", "DESIGN_LAYOUT_UNKNOWN",
+            `Unknown data-ppt-layout="${raw}".`,
+            `Use one of: ${Array.from(knownLayouts).join(", ")}. See references/layout-presets.md.`);
+          declared.push({ layout, family: "unknown", slide, index: i });
+          return;
+        }
+
+        const spec = layoutSpecs[layout] || {};
+        const family = compactToken(spec.family || layout);
+        declared.push({ layout, family, slide, index: i });
+        for (const role of spec.requiredRegions || []) {
+          if (!slide.querySelector(`[data-ppt-region="${role}"]`)) {
+            add(slide, "warn", "DESIGN_LAYOUT_ROLE_MISSING",
+              `${layout} layout is missing required region "${role}".`,
+              "Add the semantic region or choose a layout whose information relationship matches the slide.");
+          }
+        }
+
+        const texts = Array.from(slide.querySelectorAll(".ppt-textbox"))
+          .map((el) => ({
+            el,
+            fs: parseFloat(getComputedStyle(el).fontSize) || 0,
+            copy: (el.textContent || "").replace(/\s+/g, " ").trim(),
+          }))
+          .filter((t) => t.copy);
+        const explicitTitle = slide.querySelector('[data-ppt-region="title"],[data-ppt-role="title"]');
+        const title = explicitTitle
+          ? texts.find((t) => t.el === explicitTitle)
+          : texts.slice().sort((a, b) => b.fs - a.fs)[0];
+        if (title) {
+          const largeTitleLayouts = new Set(["cover", "statement", "closing"]);
+          const floor = largeTitleLayouts.has(layout) ? 48 : 34;
+          if (title.fs < floor) {
+            add(title.el, "warn", "DESIGN_TITLE_TOO_SMALL",
+              `${layout} title is ${Math.round(title.fs)}px; the default floor is ${floor}px.`,
+              "Shorten the claim or adapt the silhouette before shrinking the title.");
+          }
+          const maxLines = Number(spec.maxTitleLines || 1);
+          const lines = lineCount(title.el);
+          if (lines > maxLines) {
+            add(title.el, "warn", "DESIGN_TITLE_WRAP",
+              `${layout} title occupies ${lines} lines; this silhouette allows ${maxLines}.`,
+              "Shorten the title, widen its region, or choose a silhouette designed for a longer claim.");
+          }
+        }
+
+        const tinyProse = texts.find((t) => {
+          if (t === title || t.fs >= 16 || t.copy.length <= 24) return false;
+          const role = compactToken(t.el.getAttribute("data-ppt-region") ||
+            t.el.getAttribute("data-ppt-role") || "");
+          return !exemptSmallText.has(role);
+        });
+        if (tinyProse) {
+          add(tinyProse.el, "warn", "DESIGN_BODY_TOO_SMALL",
+            `Body prose is ${Math.round(tinyProse.fs)}px; the default floor is 16px.`,
+            "Shorten the copy or change the silhouette instead of shrinking prose.");
+        }
+      });
+
+      if (slides.length >= 6 && declared.length === 0) {
+        add(slides[0], "warn", "DESIGN_LAYOUT_PLAN_MISSING",
+          `${slides.length}-slide deck declares no data-ppt-layout composition plan.`,
+          "Choose a content-led silhouette per slide from layout-presets.md, or declare custom for a deliberate original composition.");
+      }
+      if (slides.length >= 6 && declared.length >= Math.ceil(slides.length * 0.75)) {
+        const unique = new Set(declared
+          .filter((d) => d.family !== "custom" && d.family !== "unknown")
+          .map((d) => d.layout));
+        const deckRationale = String(
+          document.body?.getAttribute("data-ppt-design-rationale") ||
+          document.documentElement?.getAttribute("data-ppt-design-rationale") || "").trim();
+        if (unique.size < 3 && deckRationale.length < 6) {
+          add(slides[0], "warn", "DESIGN_LAYOUT_VARIETY",
+            `Only ${unique.size} registered silhouette(s) are used across ${declared.length} planned slides.`,
+            "Vary the information geometry, or declare a deck-level data-ppt-design-rationale when systematic repetition is the visual concept.");
+        }
+      }
+      for (let i = 2; i < declared.length; i += 1) {
+        const trio = declared.slice(i - 2, i + 1);
+        if (trio[0].index + 1 !== trio[1].index || trio[1].index + 1 !== trio[2].index) continue;
+        if (trio.every((d) => d.family === trio[0].family && d.family !== "custom" && d.family !== "unknown")) {
+          const morphChain = isMorphTransition(trio[1].slide) && isMorphTransition(trio[2].slide);
+          if (!morphChain && !hasDesignRationale(trio[2].slide)) {
+            add(trio[2].slide, "warn", "DESIGN_SILHOUETTE_REPEAT",
+              `Three consecutive slides use the "${trio[0].family}" silhouette family.`,
+              "Change the geometry, use a deliberate adjacent Morph sequence, or state the repetition's purpose in data-ppt-design-rationale.");
+          }
+        }
+      }
+    }
+
     for (let i = 0; i < slides.length; i += 1) {
       const presetRaw = motionPresetFor(slides[i]);
       const preset = compactToken(presetRaw || "elegant");
@@ -582,6 +748,7 @@ async function main() {
       let gridSlides = 0;
       slides.forEach((s, i) => {
         const rect = slideRects[i];
+        const intentionalDesign = hasDesignRationale(s);
         // same-size rectangle grid — checked before the texts bail-out so
         // pure-shape card pages (labels written inside shapes) still count.
         // Cards built as filled textboxes count too, and 3-in-a-row (the
@@ -597,7 +764,7 @@ async function main() {
         const sizeKey = (r) => `${Math.round(r.width / 8)}x${Math.round(r.height / 8)}`;
         const sizes = {};
         shapes.forEach((r) => { sizes[sizeKey(r)] = (sizes[sizeKey(r)] || 0) + 1; });
-        if (Object.values(sizes).some((n) => n >= 3)) gridSlides += 1;
+        if (!intentionalDesign && Object.values(sizes).some((n) => n >= 3)) gridSlides += 1;
         const texts = Array.from(s.querySelectorAll(".ppt-textbox"))
           .map((el) => ({ el, r: el.getBoundingClientRect(), fs: parseFloat(getComputedStyle(el).fontSize) || 0 }))
           .filter((t) => (t.el.textContent || "").trim());
@@ -605,7 +772,7 @@ async function main() {
         const title = texts.slice().sort((a, b) => b.fs - a.fs)[0];
         const tx = (title.r.left - rect.left) / Math.max(1, rect.width);
         const ty = (title.r.top - rect.top) / Math.max(1, rect.height);
-        if (tx < 0.16 && ty < 0.22) topLeftTitles += 1;
+        if (!intentionalDesign && tx < 0.16 && ty < 0.22) topLeftTitles += 1;
         // Small English kicker above OR below a large CJK title. The below-title
         // form is just as templated as the classic eyebrow, so check the whole
         // title lockup rather than only text whose bottom edge is above it.
@@ -623,14 +790,14 @@ async function main() {
             const overlapRatio = horizontalOverlap / Math.max(1, Math.min(t.r.width, title.r.width));
             return verticalGap <= title.fs * 2.2 && overlapRatio >= 0.35;
           });
-          if (englishKicker) {
+          if (englishKicker && !intentionalDesign) {
             add(englishKicker.el, "warn", "AI_EN_EYEBROW",
               "Small English kicker paired with a large CJK title is a template tell.",
               "Delete it, or use a local-language context label only where it changes how the title is read.");
           }
         }
         const isFootnote = (t) => t.fs <= 13 && (t.r.top - rect.top) / Math.max(1, rect.height) > 0.88;
-        if (texts.some(isFootnote)) footnoteSlides += 1;
+        if (!intentionalDesign && texts.some(isFootnote)) footnoteSlides += 1;
         // Text-wall check against the authoring budget (prompt-orchestration.md
         // Content Density): ≤4 body blocks per slide, ≤45 CJK-equivalent chars
         // per block. Fires per slide with 50% slack on the per-block budget.
@@ -779,12 +946,36 @@ async function main() {
 
   await browser.close();
 
+  const advisoryRules = new Set([
+    "DESIGN_LAYOUT_PLAN_MISSING",
+    "DESIGN_LAYOUT_VARIETY",
+    "DESIGN_SILHOUETTE_REPEAT",
+    "AI_TITLE_LOCKUP_MONOTONY",
+    "AI_EN_EYEBROW",
+    "AI_FOOTNOTE_FURNITURE",
+    "AI_CARD_GRID_MONOTONY",
+    "AI_IMAGE_SCARCITY",
+    "AI_ROBOTIC_COPY",
+  ]);
+  const contractRules = new Set([
+    "DESIGN_LAYOUT_UNKNOWN",
+    "DESIGN_LAYOUT_ROLE_MISSING",
+    "AI_CHART_DECORATION",
+  ]);
+  for (const violation of violations) {
+    if (advisoryRules.has(violation.rule)) violation.kind = "advisory";
+    else if (contractRules.has(violation.rule) || violation.level === "error") violation.kind = "contract";
+    else violation.kind = "quality";
+  }
   const errors = violations.filter((v) => v.level === "error").length;
   const warnings = violations.filter((v) => v.level === "warn").length;
+  const quality = violations.filter((v) => v.kind === "quality").length;
+  const contract = violations.filter((v) => v.kind === "contract").length;
+  const advisory = violations.filter((v) => v.kind === "advisory").length;
   const report = {
     ok: errors === 0,
     input: args.input,
-    counts: { errors, warnings, total: violations.length },
+    counts: { errors, warnings, quality, contract, advisory, total: violations.length },
     violations,
   };
   const text = JSON.stringify(report, null, 2);

@@ -1,14 +1,18 @@
 # Prompt Orchestration
 
 Use this when the user's request is broad, terse, or taste-sensitive. Before
-writing HTML, turn the request into an internal implementation brief, then two
-concrete plans — the COPY PLAN (every word that will appear on a slide) and the
-MOTION SCORE (every entrance, build, and transition). Do not ask the user to
+writing HTML, turn the request into an internal implementation brief, then three
+concrete plans plus one deck-level design contract — the STYLE SCORE (the
+coherent visual system and the freedoms it protects), the COPY PLAN (every word
+that will appear on a slide), the VISUAL SCORE (why each composition looks the
+way it does), and the MOTION SCORE (every entrance, build, and transition). Do
+not ask the user to
 review these unless required facts are missing; the point is to make rough
 prompts compile into deliberate decks.
 
 Order is mandatory when building from scratch:
-brief → copy plan → motion score → plan gate → author HTML → compile.
+brief → style score → copy plan → visual score → motion score → plan gate →
+author HTML → compile.
 Writing HTML first and patching copy/motion afterwards is how decks end up
 with filler text and per-element fade piles.
 
@@ -19,15 +23,40 @@ Write a compact brief with these fields:
 ```text
 Audience / language:
 Deck job:
+Communication job: By the end, <audience> should <outcome> because <takeaway>.
 Narrative arc:
 Slide plan:
-- slide: claim, content role, layout motif, native carriers, motion intent,
+- slide: claim, content role, layout silhouette, native carriers, motion intent,
   ambient layer, visual assets, validation risks
 Motion preset:
 Appearance system:
+Visual thesis:
 Asset strategy:
 Validation plan:
 ```
+
+## Style Score (cohere the deck without choosing its style for it)
+
+Read `creative-direction.md`, then write one deck-level system:
+
+```text
+Style Score
+- creative direction: <a specific visual thesis, not a brand imitation>
+- surface mode: <light | dark | mixed | custom>
+- palette roles: <canvas / surface / text / muted / accent / evidence>
+- typography: <display stack / text stack / numeric stack / language behavior>
+- scale and spacing rhythm: <how hierarchy and breathing room work>
+- image language: <studio | documentary | abstract | diagrammatic | collage | none>
+- effects policy: <when radius / shadow / gradient / texture have meaning>
+- tonal sequence: <where light/dark/density changes support the narrative>
+- references used: <visual principles or references, if any>
+- freedoms protected: <choices intentionally left open for slide-level invention>
+```
+
+The Style Score creates coherence, not a theme preset. Define recurring values
+as deck-local tokens, but do not copy a reference brand's fixed palette, fonts,
+corner radii, shadows, page sequence, or copy voice. Design references supply
+possible moves; the Agent decides whether and how to use them.
 
 ## Copy Plan (write the actual words before any HTML)
 
@@ -46,6 +75,48 @@ budget below; copy hygiene rules from design-and-motion.md apply here, at
 plan time — de-jargon, specifics over abstractions, no banned scaffolds.
 Fixing words in the plan costs one line; fixing them after authoring costs a
 recompile cycle.
+
+## Visual Score (design before choosing coordinates)
+
+The Visual Score forces a content-led design decision before a preset is
+selected. Read `layout-presets.md`, then write one line per slide:
+
+```text
+- slide N — job: <what this slide must make the audience understand/do>
+  anchor: <image | number | chart/table | diagram | type | media | none>
+  relationship: <assertion | evidence | comparison | sequence | spatial | action>
+  silhouette: <cover | statement | split | editorial | hero-media | metric |
+               comparison | timeline | process | evidence | gallery | matrix |
+               closing | custom>
+  focal point: <the first thing the eye should land on>
+  contrast: <scale / position / color / density / image-vs-type strategy>
+  neighbor difference: <how this silhouette differs from slides N-1 and N+1>
+  references used: <optional visual moves, or "none">
+  heuristic broken: <optional heuristic + specific visual/narrative reason>
+```
+
+Rules:
+
+- Preset selection comes AFTER job, anchor, and relationship. A preset is never
+  the reason content exists.
+- Presets provide geometry, not visual style. Adapt proportions for the actual
+  crop, chart, copy length, and focal hierarchy.
+- Prefer one composition over a collection of UI panels. There is no card-grid
+  preset by design.
+- Use real or generated imagery when it adds evidence, setting, identity, or
+  emotional force. Do not use a stock photo merely to satisfy a quota.
+- Default typography floor: 48px for cover/statement/closing titles, 34px for
+  content titles, 24px for callouts, 16px for prose. Shorten copy or change the
+  silhouette before shrinking type.
+- Three consecutive slides from the same silhouette family require an adjacent
+  Morph sequence, a redesign, or a stated reason for deliberate repetition.
+- Inspiration is optional. Never add a gradient, photograph, rounded surface,
+  oversized title, or dark field merely because it appears in the reference
+  library.
+- A deliberate heuristic break is valid. Put its reason in
+  `data-ppt-design-rationale` when the linter would otherwise repeat an advisory.
+  No rationale can waive clipping, illegibility, broken evidence, native loss,
+  or motion discontinuity.
 
 ## Motion Score (choreograph before authoring, one line per slide)
 
@@ -115,6 +186,9 @@ must advance the arc or be cut.
 - Assign one information architecture per slide: hierarchy, process, timeline,
   comparison, evidence stack, metric cluster, hub-spoke, map, matrix, gallery,
   or state change.
+- Choose one guided silhouette from `layout-presets.md` after the slide job,
+  visual anchor, and information relationship are known. Declare `custom` only
+  when a deliberate original composition is better.
 - Assign one motion grammar per slide:
   - `compose` for one focal object.
   - `data-ppt-sequence` for grouped children.
@@ -138,17 +212,31 @@ Do not start HTML until every line passes:
 3. Title placement varies across the deck; no English eyebrows on a CJK deck;
    footnotes only where a source needs citing (`AI_TITLE_LOCKUP_MONOTONY` /
    `AI_EN_EYEBROW` / `AI_FOOTNOTE_FURNITURE`).
-4. Each slide has exactly one motion grammar and at most one hero moment.
-5. Every Morph candidate pair has its persisting objects named; every cluster
+4. Every slide has a Visual Score: job, anchor, relationship, silhouette,
+   focal point, contrast, neighbor difference, optional references, and any
+   deliberate heuristic break. Copy fits at the typography floor; changing
+   layout comes before shrinking type.
+5. The declared `data-ppt-layout` sequence uses at least three silhouettes in a
+   6+ slide deck, and no three-slide family repeat survives without a named
+   Morph or design rationale (`DESIGN_LAYOUT_VARIETY` /
+   `DESIGN_SILHOUETTE_REPEAT`). These are advisories: intentional systematic
+   repetition is allowed when its purpose is explicit.
+6. Each slide has exactly one motion grammar and at most one hero moment.
+7. Every Morph candidate pair has its persisting objects named; every cluster
    in the build order maps to a wrapper/motif in the HTML you are about to
    write.
-6. Layout silhouettes vary (not the same card grid every slide —
-   `AI_CARD_GRID_MONOTONY`), and the deck has its images/diagrams decided
+8. Review layout repetition (including `AI_CARD_GRID_MONOTONY`) without treating
+   novelty as an end in itself. A repeated system is valid when comparison,
+   cataloging, ritual, or continuity is the point and the Visual Score says so.
+   The deck has its images/diagrams decided
    (`AI_IMAGE_SCARCITY`): concrete topic → useful sourced imagery on at least
    25% of slides (minimum two in a 6+ slide deck); abstract topic →
    `data-ppt-visual-strategy="diagram-only|data-only|typographic"` as a
    deliberate choice. Every chart names the claim it proves in
    `data-ppt-evidence`.
+9. The Style Score defines roles and a visual thesis but protects slide-level
+   invention. It contains no imported copy formula, fixed inspiration-brand
+   palette, mandatory font, or required visual element.
 
 ## Implementation Prompt
 
@@ -157,7 +245,8 @@ implementation language:
 
 ```text
 Build a native-editable PPTX using pptx-native. Author HTML with explicit
-data-ppt-motion-preset and data-ppt-motion-intent per animated slide. Use
+data-ppt-layout/data-ppt-region composition roles and explicit
+data-ppt-motion-preset/data-ppt-motion-intent per animated slide. Use
 ambient/motif/sequence/Morph where the brief calls for them. Compile and iterate
 until ok:true, validate ok, no unintended losses, and layout warnings resolved.
 ```

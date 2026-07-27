@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "stage": { "width": 1280, "height": 720 },
+  "principle": "Presets define information geometry, never visual style.",
+  "presets": {
+    "cover": {
+      "family": "opening",
+      "job": "Open with one idea, tension, or promise.",
+      "requiredRegions": ["title"],
+      "optionalRegions": ["subtitle", "media", "context"],
+      "maxTitleLines": 2,
+      "motionDefault": "hierarchy",
+      "avoid": ["agenda copy", "three-card summary", "decorative English eyebrow"]
+    },
+    "statement": {
+      "family": "assertion",
+      "job": "Make one claim carry the entire slide.",
+      "requiredRegions": ["title"],
+      "optionalRegions": ["support", "source"],
+      "maxTitleLines": 2,
+      "motionDefault": "hierarchy",
+      "avoid": ["paragraph under the claim", "equal supporting cards"]
+    },
+    "split": {
+      "family": "media",
+      "job": "Pair a concise argument with one strong visual.",
+      "requiredRegions": ["copy", "media"],
+      "optionalRegions": ["caption", "source"],
+      "maxTitleLines": 2,
+      "motionDefault": "mediaReveal",
+      "avoid": ["50/50 symmetry when one side matters more", "generic stock photo"]
+    },
+    "editorial": {
+      "family": "media",
+      "job": "Build an asymmetric magazine-like reading path.",
+      "requiredRegions": ["title", "media"],
+      "optionalRegions": ["lead", "detail", "caption", "source"],
+      "maxTitleLines": 1,
+      "motionDefault": "hierarchy",
+      "avoid": ["dashboard density", "many equal modules"]
+    },
+    "hero-media": {
+      "family": "media",
+      "job": "Let a single image or video create the setting and emotional anchor.",
+      "requiredRegions": ["media", "title"],
+      "optionalRegions": ["caption", "source"],
+      "maxTitleLines": 2,
+      "motionDefault": "mediaReveal",
+      "avoid": ["busy image behind long copy", "unreadable overlay text"]
+    },
+    "metric": {
+      "family": "data",
+      "job": "Turn one number into a judgment, with only the evidence needed to trust it.",
+      "requiredRegions": ["title", "metric"],
+      "optionalRegions": ["evidence", "source"],
+      "maxTitleLines": 1,
+      "motionDefault": "metricCluster",
+      "avoid": ["four equal KPI cards", "number without consequence"]
+    },
+    "comparison": {
+      "family": "relation",
+      "job": "Resolve a genuine choice, contrast, or before/after.",
+      "requiredRegions": ["left", "right"],
+      "optionalRegions": ["title", "axis", "verdict", "source"],
+      "maxTitleLines": 1,
+      "motionDefault": "comparison",
+      "avoid": ["fake symmetry", "more than two primary alternatives"]
+    },
+    "timeline": {
+      "family": "sequence",
+      "job": "Show when events happen and how each milestone grows from one spine.",
+      "requiredRegions": ["canvas"],
+      "optionalRegions": ["title", "source"],
+      "maxTitleLines": 1,
+      "motionDefault": "timeline",
+      "avoid": ["independent floating milestones", "paragraphs at every date"]
+    },
+    "process": {
+      "family": "sequence",
+      "job": "Show causal or operational progression, not merely a numbered list.",
+      "requiredRegions": ["canvas"],
+      "optionalRegions": ["title", "outcome", "source"],
+      "maxTitleLines": 1,
+      "motionDefault": "flow",
+      "avoid": ["unconnected boxes", "more than seven visible steps"]
+    },
+    "evidence": {
+      "family": "media",
+      "job": "Put the proof first and the interpretation beside it.",
+      "requiredRegions": ["visual", "interpretation"],
+      "optionalRegions": ["title", "caption", "source"],
+      "maxTitleLines": 1,
+      "motionDefault": "hierarchy",
+      "avoid": ["chart or image that does not prove the title", "duplicating the visual in prose"]
+    },
+    "gallery": {
+      "family": "media",
+      "job": "Show a curated set with one dominant example and supporting evidence.",
+      "requiredRegions": ["primary"],
+      "optionalRegions": ["title", "secondary", "tertiary", "caption", "source"],
+      "maxTitleLines": 1,
+      "motionDefault": "gallery",
+      "avoid": ["uniform thumbnail grid", "reusing one image"]
+    },
+    "matrix": {
+      "family": "relation",
+      "job": "Place items against two meaningful dimensions.",
+      "requiredRegions": ["canvas"],
+      "optionalRegions": ["title", "legend", "source"],
+      "maxTitleLines": 1,
+      "motionDefault": "hierarchy",
+      "avoid": ["axes without decisions", "dense spreadsheet recreation"]
+    },
+    "closing": {
+      "family": "closing",
+      "job": "Resolve the opening with a decision, action, or implication.",
+      "requiredRegions": ["title"],
+      "optionalRegions": ["action", "media", "source"],
+      "maxTitleLines": 2,
+      "motionDefault": "stateChange",
+      "avoid": ["generic thank-you", "cover restatement", "new evidence"]
+    },
+    "custom": {
+      "family": "custom",
+      "job": "Use a deliberate silhouette when no registered information geometry fits.",
+      "requiredRegions": [],
+      "optionalRegions": [],
+      "maxTitleLines": 2,
+      "motionDefault": "hierarchy",
+      "avoid": ["using custom to skip planning", "recreating a card grid under another name"]
+    }
+  }
+}

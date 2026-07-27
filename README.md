@@ -17,7 +17,7 @@
 
 **就写正常 HTML/CSS。** html2scene 用 Playwright 渲染页面，读每个元素的计算盒子（getBoundingClientRect）。flex、grid、百分比、正常文档流全部可用——浏览器会解析成具体像素。普通的 h1/p/div 自动识别成文本框/形状/图片，不需要专有 class。
 
-**工具不管审美。** 版式配色字体动效全部由模型根据用户需求决定。工具本身不预装模板、不预设主题，连默认色板都是中性灰阶。
+**编译器不强加审美，Skill 会引导设计。** 版式、配色、字体和动效仍由模型根据内容与用户需求决定；Skill 提供 Style Score、Visual Score、14 种无视觉风格的构图轮廓、质量门和设计 advisory。Preset 只给信息区域的起始几何，不预装主题、文案或三卡片模板；参考风格只提供可选设计元素，不会导入固定色板、字体或品牌文案公式。
 
 
 ## 编译管线
@@ -50,6 +50,27 @@ CSS 动画会被编译成 PowerPoint 原生时间轴：@keyframes 里的 opacity
 - 原生对象：165 套形状预设、可编辑表格、数据图表、演讲者备注
 
 无法原生表达的会显式记为 loss：conic 渐变、clip-path、mix-blend-mode、非 opacity/transform/颜色的 @keyframes 属性等。
+
+
+## 设计引导
+
+从零生成时，Skill 要求先完成四张内部计划：
+
+- **Style Score**：全套视觉方向、角色化 tokens、字体与图像语言、效果政策、明暗节奏，以及刻意保留给 Agent 的创作自由；
+- **Copy Plan**：每页最终可见文字，先过密度与自然语言检查；
+- **Visual Score**：页面任务、视觉锚点、信息关系、构图轮廓、焦点、相邻页差异、参考元素和刻意打破的启发式规则；
+- **Motion Score**：动画语法、主动作、组件整体进入顺序和 Morph 对象。
+
+`data-ppt-layout` 提供 `cover`、`statement`、`split`、`editorial`、
+`hero-media`、`metric`、`comparison`、`timeline`、`process`、`evidence`、
+`gallery`、`matrix`、`closing` 和 `custom`。它们是可调整的页面轮廓，不是
+成品模板。`node tools/ppt_design_gates.cjs` 会验证 preset、CSS 几何、小字号、
+缺失区域和重复页面骨架。
+
+Lint 结果区分三类：`quality` 是可读性与几何质量，`contract` 是原生对象和
+证据契约，二者必须解决；`advisory` 只是审美复核提示。Agent 可以用
+`data-ppt-design-rationale` 说明为什么刻意重复、使用网格或打破常规，
+实验性设计不会因模板偏好被机械拦截。
 
 
 ## 快速开始

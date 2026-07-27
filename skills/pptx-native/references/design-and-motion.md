@@ -24,6 +24,12 @@ Use the native object with the strongest editable meaning:
 
 Component classes define object boundaries, not visual taste.
 
+Guided layout presets follow the same rule. `data-ppt-layout` selects an
+information silhouette and `data-ppt-region` selects its semantic regions;
+`assets/ppt-components.css` supplies only default geometry. The Agent still owns
+the visual thesis, focal hierarchy, proportions, palette, typography, imagery,
+and slide-to-slide rhythm. See `layout-presets.md`.
+
 - Do not bake colors, fonts, border radii, shadows, or spacing into a reusable
   class unless they are explicitly supplied as deck-local CSS variables.
 - Use names like `.ppt-flow`, `.ppt-roadmap`, `.ppt-metric-cluster` only to
@@ -157,10 +163,13 @@ Hard rules that make the combos read premium:
   reframe). Prefer it over rebuilding a slide's worth of entrances when ≥1
   object persists across the cut. Use builds within a slide, Morph between.
 
-## Anti-AI Layout Tells (from owner review — treat as blockers)
+## Anti-AI Layout Tells (review every finding)
 
-The linter enforces these as `AI_*` warnings; the build workflow requires
-resolving them (or keeping a slide only with a stated reason) before shipping.
+The linter reports these as `AI_*` warnings. Treat evidence integrity,
+readability, and actual layout failures as blockers. Treat aesthetic repetition
+and style tells as advisories: redesign them or keep them with a specific
+Visual Score reason and `data-ppt-design-rationale`. See
+`creative-direction.md` for the quality/heuristic boundary.
 Deck-level monotony rules fire once HALF the deck (min 3 slides) shows the
 tell — they read as AI well before they hit every page.
 Regression guard: `node tools/ppt_taste_gates.cjs`.
@@ -193,6 +202,11 @@ Regression guard: `node tools/ppt_taste_gates.cjs`.
   strategy: `data-ppt-visual-strategy="diagram-only|data-only|typographic"`.
 
 ## Copy And Preset Hygiene (anti-AI writing rules)
+
+These rules come from audience-facing presentation writing, not from a visual
+inspiration brand. Never import slogan formulas, rhetorical-question patterns,
+superlatives, fragments, rhyme, 对仗, or 四字格 merely because a design
+reference uses them.
 
 Titles:
 
