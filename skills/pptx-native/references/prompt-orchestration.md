@@ -144,8 +144,11 @@ Do not start HTML until every line passes:
    write.
 6. Layout silhouettes vary (not the same card grid every slide —
    `AI_CARD_GRID_MONOTONY`), and the deck has its images/diagrams decided
-   (`AI_IMAGE_SCARCITY`): concrete topic → 1–2 real sourced images; abstract
-   topic → diagrams/type, as a deliberate choice.
+   (`AI_IMAGE_SCARCITY`): concrete topic → useful sourced imagery on at least
+   25% of slides (minimum two in a 6+ slide deck); abstract topic →
+   `data-ppt-visual-strategy="diagram-only|data-only|typographic"` as a
+   deliberate choice. Every chart names the claim it proves in
+   `data-ppt-evidence`.
 
 ## Implementation Prompt
 

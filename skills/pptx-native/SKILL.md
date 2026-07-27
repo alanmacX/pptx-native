@@ -52,8 +52,9 @@ slides. Unsupported native gaps must be reported as losses, never silently faked
    catch — do not ship a deck that still has them.
    Treat `AI_*` warnings as blockers as well: they flag the layouts and copy
    that read machine-generated (title lockup repeated across the deck, footnote
-   furniture, same-size card grids, text walls over the density budget, an
-   all-text zero-image deck, robotic phrasing). Fix the slide, or keep it only
+   furniture, same-size card grids, text walls over the density budget, sparse
+   evidence imagery, decorative charts, robotic phrasing, missed Morph continuity).
+   Fix the slide, or keep it only
    with a deliberate, stated reason — never ship them unread. The full ruleset
    and the fixes live in `references/design-and-motion.md` (Anti-AI Tells).
    Run the automated gates directly; do not stop to ask the user for PPTX
@@ -104,8 +105,10 @@ For repo-local native scene JSON details, use `docs/native-authoring.md`.
   the topic is concrete and visual (a place, product, person, artwork, animal,
   food, landmark, real event) — if so, one or a few well-chosen real images lift
   it; if it is data, process, or abstract concepts, native shapes/type read
-  better and stock photos only add noise. Let content decide the count, never a
-  per-slide quota; a deck can correctly have zero images. When you do source,
+  better and stock photos only add noise. Let content decide the count instead
+  of filling every slide mechanically. The lint treats sparse imagery in a 6+
+  slide concrete deck as a review signal, while an explicitly declared
+  diagram/data/type-led deck can correctly have zero images. When you do source,
   download with provenance first and embed local/data files — never hotlink. See
   `references/asset-search-and-media.md` for the full when-to-search rubric.
 - Use `compose` for one object with concurrent fade/motion/scale/rotation/color.

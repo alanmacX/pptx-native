@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; background: #ddd; font-family: Arial, sans-serif; }
+  .ppt-slide { position: relative; width: 1280px; height: 720px; overflow: hidden; background: #fff; }
+  .ppt-textbox, .ppt-shape, .ppt-picture { position: absolute; box-sizing: border-box; }
+  .title { left: 64px; top: 50px; width: 650px; font-size: 42px; font-weight: 800; }
+  .kicker { left: 64px; top: 108px; width: 300px; font-size: 14px; letter-spacing: 2px; }
+  .foot { left: 64px; top: 660px; width: 800px; font-size: 11px; }
+  .card { top: 240px; width: 280px; height: 180px; border-radius: 20px; background: #eef2f6; }
+</style>
+</head>
+<body>
+<section class="ppt-slide">
+  <div class="ppt-textbox title">第一条判断</div>
+  <div class="ppt-textbox kicker">THE FIRST SIGNAL</div>
+  <div class="ppt-shape card" style="left:120px"></div>
+  <div class="ppt-shape card" style="left:500px"></div>
+  <div class="ppt-shape card" style="left:880px"></div>
+  <div class="ppt-textbox foot">注：仅作页面装饰</div>
+</section>
+<section class="ppt-slide">
+  <div class="ppt-textbox title">第二条判断</div>
+  <div class="ppt-textbox kicker">THE SECOND SIGNAL</div>
+  <div class="ppt-shape card" style="left:120px"></div>
+  <div class="ppt-shape card" style="left:500px"></div>
+  <div class="ppt-shape card" style="left:880px"></div>
+  <div class="ppt-textbox foot">注：仅作页面装饰</div>
+</section>
+<section class="ppt-slide">
+  <div class="ppt-textbox title">第三条判断</div>
+  <div class="ppt-textbox kicker">THE THIRD SIGNAL</div>
+  <div class="ppt-shape card" style="left:120px"></div>
+  <div class="ppt-shape card" style="left:500px"></div>
+  <div class="ppt-shape card" style="left:880px"></div>
+  <div class="ppt-textbox foot">注：仅作页面装饰</div>
+</section>
+<section class="ppt-slide">
+  <div class="ppt-textbox" style="left:280px;top:70px;width:720px;font-size:42px">一页只留一个结论</div>
+  <div class="ppt-textbox" style="left:120px;top:200px;width:1040px;font-size:22px">
+    这是一段故意超出密度预算的长文本，用来确认文字墙规则不是只写在文档里。它会继续堆叠更多没有必要的信息，让一页幻灯片承担本应放进演讲者备注的解释，从而稳定触发检查。
+  </div>
+  <div data-ppt-role="chart" style="position:absolute;left:220px;top:390px;width:840px;height:220px"></div>
+</section>
+<section class="ppt-slide">
+  <div class="ppt-textbox" data-morph="subject" style="left:120px;top:80px;width:560px;font-size:42px">同一对象继续</div>
+  <img class="ppt-picture" alt="" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" style="left:180px;top:220px;width:320px;height:240px">
+</section>
+<section class="ppt-slide">
+  <div class="ppt-textbox" data-morph="subject" style="left:600px;top:80px;width:560px;font-size:42px">同一对象继续</div>
+  <div class="ppt-textbox" style="left:160px;top:260px;width:960px;font-size:26px">赋能业务，形成闭环，携手共进。</div>
+</section>
+</body>
+</html>

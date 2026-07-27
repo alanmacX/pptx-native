@@ -196,6 +196,10 @@ inference classify them. Known motifs: `timeline`, `layers`, `comparison`,
 POINT of a table, not a template tell. Use it only for genuine data lattices,
 not to silence the warning on decorative card grids.
 
+Mark a shape-drawn chart container with `data-ppt-role="chart"` and state the
+claim it proves in `data-ppt-evidence="..."`. A chart without a named evidence
+claim triggers `AI_CHART_DECORATION`; if no precise claim fits, remove it.
+
 ### Native 3D, picture crop, and ken-burns
 
 - `transform: perspective(800px) rotateY(-18deg)` (or `rotateX`) on a shape or

@@ -163,6 +163,7 @@ The linter enforces these as `AI_*` warnings; the build workflow requires
 resolving them (or keeping a slide only with a stated reason) before shipping.
 Deck-level monotony rules fire once HALF the deck (min 3 slides) shows the
 tell — they read as AI well before they hit every page.
+Regression guard: `node tools/ppt_taste_gates.cjs`.
 
 - **Title lockup monotony** (`AI_TITLE_LOCKUP_MONOTONY`, `AI_EN_EYEBROW`,
   `AI_FOOTNOTE_FURNITURE`): the big-title-top-left + small-eyebrow + bottom
@@ -177,14 +178,19 @@ tell — they read as AI well before they hit every page.
   importance (hero metric bigger), break grids with a full-width band or a
   diagram, let one slide be a single strong number. Cards are A layout tool,
   not THE layout.
-- **Text walls + meaningless charts** (`AI_TEXT_WALL`): the density budget is
+- **Text walls + meaningless charts** (`AI_TEXT_WALL`,
+  `AI_CHART_DECORATION`): the density budget is
   ≤4 body blocks per slide, ≤45 CJK-equivalent chars per block
   (prompt-orchestration.md); the lint fires past it. If a chart doesn't prove
-  the title, cut it. Slides carry verdicts; notes carry prose.
-- **Image scarcity** (`AI_IMAGE_SCARCITY`): a multi-slide deck with zero
-  images reads text-and-boxes AI. Concrete topics deserve 1–2 real, sourced
-  images (asset search); staying image-free is legitimate only as a deliberate
-  choice for abstract content.
+  the title, cut it. Mark every shape-drawn chart container
+  `data-ppt-role="chart"` and name the claim it proves with
+  `data-ppt-evidence="..."`. Slides carry verdicts; notes carry prose.
+- **Image scarcity** (`AI_IMAGE_SCARCITY`): zero or token imagery in a
+  multi-slide deck reads text-and-boxes AI. For six or more slides, image-led
+  concrete decks should place useful imagery on at least 25% of slides
+  (minimum two), not dump one token photo on the cover. Staying image-free is
+  legitimate for an abstract/data/type-led deck only as a deliberate, explicit
+  strategy: `data-ppt-visual-strategy="diagram-only|data-only|typographic"`.
 
 ## Copy And Preset Hygiene (anti-AI writing rules)
 

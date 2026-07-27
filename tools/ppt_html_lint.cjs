@@ -524,6 +524,15 @@ async function main() {
         }
         seen.add(key);
       }
+      if (i > 0 && !isMorphTransition(slides[i])) {
+        const prev = new Set(morphKeysFor(slides[i - 1]));
+        const shared = [...new Set(keys.filter((key) => prev.has(key)))];
+        if (shared.length) {
+          add(slides[i], "warn", "MORPH_CONTINUITY_MISSED",
+            `${shared.length} persistent object key(s) continue from the previous slide without a Morph transition: ${shared.slice(0, 4).join(", ")}.`,
+            "Use data-ppt-transition=\"type:morph; option:byObject\" so the same subject transforms continuously instead of disappearing and being rebuilt.");
+        }
+      }
       if (!isMorphTransition(slides[i])) continue;
       const timed = Array.from(slides[i].querySelectorAll("[data-ppt-anim],[data-ppt-build]"));
       if (timed.length) {
@@ -597,16 +606,27 @@ async function main() {
         const tx = (title.r.left - rect.left) / Math.max(1, rect.width);
         const ty = (title.r.top - rect.top) / Math.max(1, rect.height);
         if (tx < 0.16 && ty < 0.22) topLeftTitles += 1;
-        // English eyebrow above the title on a CJK deck
+        // Small English kicker above OR below a large CJK title. The below-title
+        // form is just as templated as the classic eyebrow, so check the whole
+        // title lockup rather than only text whose bottom edge is above it.
         if (deckIsCJK) {
-          const eyebrow = texts.find((t) => t !== title && t.fs < title.fs * 0.6 &&
-            t.r.bottom <= title.r.top + 4 && (title.r.top - t.r.bottom) < title.fs * 2.2 &&
-            /^[\x20-\x7E]+$/.test((t.el.textContent || "").trim()) &&
-            (t.el.textContent || "").trim().length >= 3);
-          if (eyebrow) {
-            add(eyebrow.el, "warn", "AI_EN_EYEBROW",
-              "English eyebrow label above a Chinese title is a template tell.",
-              "Delete it, or use a Chinese context label only where it aids scanning.");
+          const englishKicker = texts.find((t) => {
+            if (t === title || t.fs >= title.fs * 0.68 || t.fs > 18) return false;
+            const copy = (t.el.textContent || "").trim();
+            if (!/^[\x20-\x7E]+$/.test(copy) || !/[A-Za-z]/.test(copy) ||
+                copy.length < 3 || copy.length > 48) return false;
+            const verticalGap = t.r.bottom <= title.r.top
+              ? title.r.top - t.r.bottom
+              : t.r.top >= title.r.bottom ? t.r.top - title.r.bottom : 0;
+            const horizontalOverlap = Math.max(0,
+              Math.min(t.r.right, title.r.right) - Math.max(t.r.left, title.r.left));
+            const overlapRatio = horizontalOverlap / Math.max(1, Math.min(t.r.width, title.r.width));
+            return verticalGap <= title.fs * 2.2 && overlapRatio >= 0.35;
+          });
+          if (englishKicker) {
+            add(englishKicker.el, "warn", "AI_EN_EYEBROW",
+              "Small English kicker paired with a large CJK title is a template tell.",
+              "Delete it, or use a local-language context label only where it changes how the title is read.");
           }
         }
         const isFootnote = (t) => t.fs <= 13 && (t.r.top - rect.top) / Math.max(1, rect.height) > 0.88;
@@ -645,16 +665,34 @@ async function main() {
           `${gridSlides}/${slides.length} slides are same-size rectangle grids.`,
           "Vary unit sizes by importance, break one grid with a full-width band, a diagram, or a single strong number.");
       }
-      // Image scarcity: an all-text-and-boxes deck is itself a tell. Only
-      // sources the compiler actually turns into native pictures count —
-      // CSS background url() and svg <image> are silently DROPPED by
-      // html2scene, so they must not mask a genuinely image-free deck.
-      const imageCount = slides.reduce((n, s) =>
-        n + s.querySelectorAll("img, .ppt-picture, .ppt-media").length, 0);
-      if (slides.length >= 6 && imageCount === 0) {
+      // Image scarcity: "one token image somewhere" does not rescue a long
+      // text-and-boxes deck. Count image-bearing slides, not raw image tags.
+      // Only sources the compiler turns into native pictures count — CSS
+      // url()/svg image are dropped and must not mask a genuinely sparse deck.
+      // Abstract/data/type-led decks may explicitly declare their visual
+      // strategy; the waiver is reviewable instead of silently inferred.
+      const visualStrategy = compactToken(
+        document.body?.getAttribute("data-ppt-visual-strategy") ||
+        document.documentElement?.getAttribute("data-ppt-visual-strategy") || "");
+      const imageOptional = new Set(["abstract", "diagram", "diagramonly", "data", "dataonly", "typographic", "typeonly"]);
+      const imageSlides = slides.filter((s) =>
+        s.querySelector("img, .ppt-picture, .ppt-media")).length;
+      const imageFloor = Math.max(2, Math.ceil(slides.length * 0.25));
+      if (slides.length >= 6 && imageSlides < imageFloor && !imageOptional.has(visualStrategy)) {
         add(slides[0], "warn", "AI_IMAGE_SCARCITY",
-          `0 images across ${slides.length} slides.`,
-          "Concrete topics deserve 1–2 real, sourced images (tools/ppt_asset_search.cjs); keep a deck image-free only as a deliberate choice for abstract content (asset-search-and-media.md).");
+          `Only ${imageSlides}/${slides.length} slides contain a native image; expected at least ${imageFloor} for an image-led or concrete deck.`,
+          "Add a few real, sourced images where they provide evidence, or explicitly mark a genuinely abstract deck with data-ppt-visual-strategy=\"diagram-only|data-only|typographic\".");
+      }
+      // A chart needs a sentence-level reason to exist. This cannot prove the
+      // data is truthful, but it stops decorative charts from entering the
+      // deck without an author naming the claim they support.
+      for (const chart of document.querySelectorAll('[data-ppt-role="chart"]')) {
+        const evidence = (chart.getAttribute("data-ppt-evidence") || "").trim();
+        if (!evidence) {
+          add(chart, "warn", "AI_CHART_DECORATION",
+            "Chart has no declared evidence claim and may be decorative.",
+            "Add data-ppt-evidence=\"<the slide claim this chart proves>\"; if no precise claim fits, cut the chart.");
+        }
       }
       // High-signal robotic-copy scan (full banlist: design-and-motion.md).
       const banned = [
